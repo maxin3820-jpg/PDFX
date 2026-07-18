@@ -54,10 +54,17 @@ jobs:
           echo "Android SDK: $ANDROID_SDK_ROOT"
           ls -la $ANDROID_SDK_ROOT || true
       
+      - name: Verify project structure
+        run: |
+          echo "📁 Verifying Kotlin source files..."
+          find app/src/main/java -name "*.kt" | head -20
+          echo ""
+          echo "Total Kotlin files: $(find app/src/main/java -name '*.kt' | wc -l)"
+      
       - name: Build Debug APK
         run: |
           echo "🔨 Building Debug APK..."
-          ./gradlew assembleDebug --stacktrace --no-daemon --warning-mode=all
+          ./gradlew assembleDebug --stacktrace --info --no-daemon --warning-mode=all
           echo "✅ Debug APK built successfully"
       
       - name: Get APK info
