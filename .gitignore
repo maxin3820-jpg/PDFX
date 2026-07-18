@@ -33,7 +33,11 @@ mapping.txt
 # Kotlin
 ############################
 *.class
-*.jar (except gradle-wrapper.jar)
+
+############################
+# Gradle wrapper (keep the jar)
+############################
+!gradle/wrapper/gradle-wrapper.jar
 
 ############################
 # OS
@@ -55,8 +59,3 @@ out/
 .idea/dictionaries
 .idea/libraries
 .idea/caches
-
-############################
-# Gradle wrapper (keep the jar)
-############################
-!gradle/wrapper/gradle-wrapper.jar
