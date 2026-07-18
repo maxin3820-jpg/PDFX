@@ -5,7 +5,8 @@ import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.util.Log
-import androidx.lifecycle.ViewModelimport androidx.lifecycle.viewModelScope
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.pdfx.app.domain.model.ReaderTheme
 import com.pdfx.app.domain.repository.PdfRepository
 import com.pdfx.app.domain.repository.SettingsRepository
