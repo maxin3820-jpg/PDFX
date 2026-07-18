@@ -1,0 +1,147 @@
+
+<!-- ══════════════════════ SETTINGS SCREEN ══════════════════════ -->
+<p class="section-title">Settings Screen</p>
+<div class="screens-row">
+
+  <!-- SETTINGS LIGHT -->
+  <div class="phone-wrap">
+    <div class="phone" id="phone-settings-light">
+      <div class="status-bar"><span>9:41</span><div class="status-right"><span>●●●●</span><span>🔋</span></div></div>
+      <div class="app-bar">
+        <button class="icon-btn" onclick="navigate('home-light')" style="margin-right:4px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        </button>
+        <span class="app-bar-title">Settings</span>
+      </div>
+      <div class="screen-content">
+        <div class="settings-section-header">Appearance</div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">App Theme</div><div class="settings-row-sub">System default</div></div></div>
+        <div class="swatch-section">
+          <div class="swatch-label">Accent Colour</div>
+          <div class="swatch-grid">
+            <div class="swatch on" data-group="al" style="background:#2563EB" onclick="selectSwatch(this,'al')"><span class="swatch-check">✓</span><span class="swatch-name">Blue</span></div>
+            <div class="swatch" data-group="al" style="background:#4F46E5" onclick="selectSwatch(this,'al')"><span class="swatch-check">✓</span><span class="swatch-name">Indigo</span></div>
+            <div class="swatch" data-group="al" style="background:#7C3AED" onclick="selectSwatch(this,'al')"><span class="swatch-check">✓</span><span class="swatch-name">Purple</span></div>
+            <div class="swatch" data-group="al" style="background:#DB2777" onclick="selectSwatch(this,'al')"><span class="swatch-check">✓</span><span class="swatch-name">Pink</span></div>
+            <div class="swatch" data-group="al" style="background:#DC2626" onclick="selectSwatch(this,'al')"><span class="swatch-check">✓</span><span class="swatch-name">Red</span></div>
+            <div class="swatch" data-group="al" style="background:#EA580C" onclick="selectSwatch(this,'al')"><span class="swatch-check">✓</span><span class="swatch-name">Orange</span></div>
+            <div class="swatch" data-group="al" style="background:#D97706" onclick="selectSwatch(this,'al')"><span class="swatch-check">✓</span><span class="swatch-name">Amber</span></div>
+            <div class="swatch" data-group="al" style="background:#16A34A" onclick="selectSwatch(this,'al')"><span class="swatch-check">✓</span><span class="swatch-name">Green</span></div>
+            <div class="swatch" data-group="al" style="background:#0D9488" onclick="selectSwatch(this,'al')"><span class="swatch-check">✓</span><span class="swatch-name">Teal</span></div>
+            <div class="swatch" data-group="al" style="background:#475569" onclick="selectSwatch(this,'al')"><span class="swatch-check">✓</span><span class="swatch-name">Slate</span></div>
+          </div>
+        </div>
+        <div class="settings-divider"></div>
+        <div class="settings-section-header">Reader</div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Reader Theme</div><div class="settings-row-sub">Light</div></div></div>
+        <div class="swatch-section">
+          <div class="swatch-label">Page Background</div>
+          <div class="swatch-grid">
+            <div class="swatch on" data-group="bl" style="background:#FFFFFF;outline:1px solid #ddd" onclick="selectSwatch(this,'bl')"><span class="swatch-check" style="color:#111">✓</span><span class="swatch-name" style="color:#666">White</span></div>
+            <div class="swatch" data-group="bl" style="background:#F5F5F5;outline:1px solid #ddd" onclick="selectSwatch(this,'bl')"><span class="swatch-check" style="color:#111">✓</span><span class="swatch-name" style="color:#666">Lt Grey</span></div>
+            <div class="swatch" data-group="bl" style="background:#FFFBF0;outline:1px solid #e8d9b0" onclick="selectSwatch(this,'bl')"><span class="swatch-check" style="color:#111">✓</span><span class="swatch-name" style="color:#666">Cream</span></div>
+            <div class="swatch" data-group="bl" style="background:#F5E6C8" onclick="selectSwatch(this,'bl')"><span class="swatch-check" style="color:#111">✓</span><span class="swatch-name" style="color:#666">Sepia</span></div>
+            <div class="swatch" data-group="bl" style="background:#EDD9A3" onclick="selectSwatch(this,'bl')"><span class="swatch-check" style="color:#111">✓</span><span class="swatch-name" style="color:#666">W.Sepia</span></div>
+            <div class="swatch" data-group="bl" style="background:#FFF1F2;outline:1px solid #ffc0cb" onclick="selectSwatch(this,'bl')"><span class="swatch-check" style="color:#111">✓</span><span class="swatch-name" style="color:#666">Rose</span></div>
+            <div class="swatch" data-group="bl" style="background:#1A1A1A" onclick="selectSwatch(this,'bl')"><span class="swatch-check">✓</span><span class="swatch-name">Dark</span></div>
+            <div class="swatch" data-group="bl" style="background:#2D2D2D" onclick="selectSwatch(this,'bl')"><span class="swatch-check">✓</span><span class="swatch-name">Dk Grey</span></div>
+            <div class="swatch" data-group="bl" style="background:#0F172A" onclick="selectSwatch(this,'bl')"><span class="swatch-check">✓</span><span class="swatch-name">Dk Blue</span></div>
+            <div class="swatch" data-group="bl" style="background:#0F1F0F" onclick="selectSwatch(this,'bl')"><span class="swatch-check">✓</span><span class="swatch-name">Dk Green</span></div>
+            <div class="swatch" data-group="bl" style="background:#1C1209" onclick="selectSwatch(this,'bl')"><span class="swatch-check">✓</span><span class="swatch-name">Dk Brown</span></div>
+            <div class="swatch" data-group="bl" style="background:#000000;outline:1px solid #333" onclick="selectSwatch(this,'bl')"><span class="swatch-check">✓</span><span class="swatch-name">AMOLED</span></div>
+          </div>
+        </div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Remember Reading Position</div><div class="settings-row-sub">Restore page, zoom, and scroll on reopen</div></div><div class="toggle on"></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Default Zoom</div><div class="settings-row-sub">Fit Width</div></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Keep Screen On</div><div class="settings-row-sub">Prevent screen from sleeping while reading</div></div><div class="toggle"></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Show Page Number</div></div><div class="toggle on"></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Enable Animations</div></div><div class="toggle on"></div></div>
+        <div class="settings-divider"></div>
+        <div class="settings-section-header">Library</div>
+        <div class="swatch-section">
+          <div class="swatch-label">Card Style</div>
+          <div class="card-style-grid">
+            <div class="card-style-item on" onclick="selectCardStyle(this)"><div class="csp elevated"></div><span>Elevated</span></div>
+            <div class="card-style-item" onclick="selectCardStyle(this)"><div class="csp flat"></div><span>Flat</span></div>
+            <div class="card-style-item" onclick="selectCardStyle(this)"><div class="csp filled"></div><span>Filled</span></div>
+            <div class="card-style-item" onclick="selectCardStyle(this)"><div class="csp outlined"></div><span>Outlined</span></div>
+            <div class="card-style-item" onclick="selectCardStyle(this)"><div class="csp compact"></div><span>Compact</span></div>
+          </div>
+        </div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Grid Layout</div><div class="settings-row-sub">Two Columns</div></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Sort By</div><div class="settings-row-sub">Newest First</div></div></div>
+        <div class="settings-divider"></div>
+        <div class="settings-section-header">About</div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Privacy Policy</div><div class="settings-row-sub">No data collected. Everything stays on your device.</div></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Open Source Licenses</div></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Version</div><div class="settings-row-sub">1.0.0</div></div></div>
+      </div>
+    </div>
+    <div class="phone-label">Settings — Light</div>
+  </div>
+
+  <!-- SETTINGS DARK -->
+  <div class="phone-wrap">
+    <div class="phone dark" id="phone-settings-dark">
+      <div class="status-bar"><span>9:41</span><div class="status-right"><span>●●●●</span><span>🔋</span></div></div>
+      <div class="app-bar" style="border-bottom:1px solid #222;">
+        <button class="icon-btn" style="margin-right:4px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        </button>
+        <span class="app-bar-title">Settings</span>
+      </div>
+      <div class="screen-content">
+        <div class="settings-section-header">Appearance</div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">App Theme</div><div class="settings-row-sub">Dark</div></div></div>
+        <div class="swatch-section">
+          <div class="swatch-label" style="color:#94a3b8">Accent Colour</div>
+          <div class="swatch-grid">
+            <div class="swatch" data-group="ad" style="background:#60A5FA" onclick="selectSwatch(this,'ad')"><span class="swatch-check">✓</span><span class="swatch-name">Blue</span></div>
+            <div class="swatch on" data-group="ad" style="background:#818CF8" onclick="selectSwatch(this,'ad')"><span class="swatch-check">✓</span><span class="swatch-name">Indigo</span></div>
+            <div class="swatch" data-group="ad" style="background:#A78BFA" onclick="selectSwatch(this,'ad')"><span class="swatch-check">✓</span><span class="swatch-name">Purple</span></div>
+            <div class="swatch" data-group="ad" style="background:#F472B6" onclick="selectSwatch(this,'ad')"><span class="swatch-check">✓</span><span class="swatch-name">Pink</span></div>
+            <div class="swatch" data-group="ad" style="background:#F87171" onclick="selectSwatch(this,'ad')"><span class="swatch-check">✓</span><span class="swatch-name">Red</span></div>
+            <div class="swatch" data-group="ad" style="background:#FB923C" onclick="selectSwatch(this,'ad')"><span class="swatch-check">✓</span><span class="swatch-name">Orange</span></div>
+            <div class="swatch" data-group="ad" style="background:#FBBF24" onclick="selectSwatch(this,'ad')"><span class="swatch-check">✓</span><span class="swatch-name">Amber</span></div>
+            <div class="swatch" data-group="ad" style="background:#4ADE80" onclick="selectSwatch(this,'ad')"><span class="swatch-check">✓</span><span class="swatch-name">Green</span></div>
+            <div class="swatch" data-group="ad" style="background:#2DD4BF" onclick="selectSwatch(this,'ad')"><span class="swatch-check">✓</span><span class="swatch-name">Teal</span></div>
+            <div class="swatch" data-group="ad" style="background:#94A3B8" onclick="selectSwatch(this,'ad')"><span class="swatch-check">✓</span><span class="swatch-name">Slate</span></div>
+          </div>
+        </div>
+        <div class="settings-divider"></div>
+        <div class="settings-section-header">Reader</div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Reader Theme</div><div class="settings-row-sub">Dark</div></div></div>
+        <div class="swatch-section">
+          <div class="swatch-label" style="color:#94a3b8">Page Background</div>
+          <div class="swatch-grid">
+            <div class="swatch" data-group="bd" style="background:#FFFFFF;outline:1px solid #555" onclick="selectSwatch(this,'bd')"><span class="swatch-check" style="color:#111">✓</span><span class="swatch-name" style="color:#666">White</span></div>
+            <div class="swatch" data-group="bd" style="background:#F5E6C8" onclick="selectSwatch(this,'bd')"><span class="swatch-check" style="color:#111">✓</span><span class="swatch-name" style="color:#666">Sepia</span></div>
+            <div class="swatch on" data-group="bd" style="background:#1A1A1A" onclick="selectSwatch(this,'bd')"><span class="swatch-check">✓</span><span class="swatch-name">Dark</span></div>
+            <div class="swatch" data-group="bd" style="background:#2D2D2D" onclick="selectSwatch(this,'bd')"><span class="swatch-check">✓</span><span class="swatch-name">Dk Grey</span></div>
+            <div class="swatch" data-group="bd" style="background:#0F172A" onclick="selectSwatch(this,'bd')"><span class="swatch-check">✓</span><span class="swatch-name">Dk Blue</span></div>
+            <div class="swatch" data-group="bd" style="background:#0F1F0F" onclick="selectSwatch(this,'bd')"><span class="swatch-check">✓</span><span class="swatch-name">Dk Green</span></div>
+            <div class="swatch" data-group="bd" style="background:#1C1209" onclick="selectSwatch(this,'bd')"><span class="swatch-check">✓</span><span class="swatch-name">Dk Brown</span></div>
+            <div class="swatch" data-group="bd" style="background:#000;outline:1px solid #333" onclick="selectSwatch(this,'bd')"><span class="swatch-check">✓</span><span class="swatch-name">AMOLED</span></div>
+          </div>
+        </div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Remember Reading Position</div></div><div class="toggle on"></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Default Zoom</div><div class="settings-row-sub">Fit Width</div></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Keep Screen On</div></div><div class="toggle"></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Show Page Number</div></div><div class="toggle on"></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Enable Animations</div></div><div class="toggle on"></div></div>
+        <div class="settings-divider"></div>
+        <div class="settings-section-header">Library</div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Card Style</div><div class="settings-row-sub">Elevated</div></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Grid Layout</div><div class="settings-row-sub">Two Columns</div></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Sort By</div><div class="settings-row-sub">Newest First</div></div></div>
+        <div class="settings-divider"></div>
+        <div class="settings-section-header">About</div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Privacy Policy</div><div class="settings-row-sub">No data collected. Everything stays on your device.</div></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Version</div><div class="settings-row-sub">1.0.0</div></div></div>
+      </div>
+    </div>
+    <div class="phone-label">Settings — Dark</div>
+  </div>
+
+</div><!-- /screens-row -->
+

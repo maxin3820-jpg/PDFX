@@ -1,0 +1,1438 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDFX — Preview</title>
+<style>
+  /* ── Reset & base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --blue:       #2563EB;
+    --blue-dark:  #1D4ED8;
+    --blue-light: #60A5FA;
+    --blue-bg:    #DBEAFE;
+    --n50:  #FAFAFA; --n100: #F4F4F5; --n200: #E4E4E7;
+    --n300: #D1D5DB; --n400: #9CA3AF; --n500: #6B7280;
+    --n600: #4B5563; --n700: #374151; --n800: #1F2937;
+    --n900: #111827; --n950: #0A0A0A;
+    --err: #EF4444;
+    --radius: 12px; --radius-sm: 8px;
+    --shadow: 0 1px 3px rgba(0,0,0,.10), 0 1px 2px rgba(0,0,0,.06);
+    --shadow-md: 0 4px 16px rgba(0,0,0,.12);
+  }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #F0F2F5;
+    color: var(--n900);
+    min-height: 100vh;
+  }
+</style>
+
+<style>
+  /* ── Outer page layout ── */
+  .page-header {
+    background: var(--n900); color: #fff;
+    padding: 24px 40px; display: flex; align-items: center; gap: 16px;
+  }
+  .page-header .logo {
+    width: 40px; height: 40px; background: var(--blue);
+    border-radius: 10px; display: flex; align-items: center;
+    justify-content: center; font-weight: 800; font-size: 16px; color: #fff;
+  }
+  .page-header h1 { font-size: 22px; font-weight: 700; }
+  .page-header p  { font-size: 13px; color: var(--n400); margin-top: 2px; }
+
+  .page-body {
+    max-width: 1280px; margin: 0 auto; padding: 48px 32px;
+  }
+  .section-title {
+    font-size: 13px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--n500); margin-bottom: 20px;
+  }
+  .screens-row {
+    display: flex; gap: 40px; flex-wrap: wrap;
+    justify-content: center; margin-bottom: 60px;
+  }
+
+  /* ── Phone frame ── */
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .phone-label {
+    font-size: 12px; font-weight: 600; color: var(--n500);
+    text-transform: uppercase; letter-spacing: .06em;
+  }
+  .phone {
+    width: 320px; height: 660px; background: #fff;
+    border-radius: 36px; overflow: hidden; position: relative;
+    box-shadow: 0 0 0 8px var(--n900), 0 24px 60px rgba(0,0,0,.35);
+    display: flex; flex-direction: column;
+  }
+  .phone.dark { background: var(--n950); }
+  .phone.sepia { background: #F5E6C8; }
+
+  /* status bar */
+  .status-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 20px 4px; font-size: 11px; font-weight: 600;
+    color: var(--n700); flex-shrink: 0;
+  }
+  .phone.dark .status-bar { color: #ccc; }
+  .phone.sepia .status-bar { color: #7a5c2e; }
+  .status-right { display: flex; gap: 6px; align-items: center; }
+
+  /* top app bar */
+  .app-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 8px 6px 16px; min-height: 52px; flex-shrink: 0;
+  }
+  .app-bar-title {
+    font-size: 18px; font-weight: 700; color: var(--n900); flex: 1;
+  }
+  .phone.dark .app-bar-title { color: #f0f0f0; }
+  .app-bar-actions { display: flex; gap: 4px; }
+  .icon-btn {
+    width: 40px; height: 40px; border-radius: 50%; border: none;
+    background: transparent; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; color: var(--n600);
+    transition: background .15s;
+  }
+  .icon-btn:hover { background: var(--n100); }
+  .phone.dark .icon-btn { color: #aaa; }
+  .phone.dark .icon-btn:hover { background: var(--n800); }
+</style>
+
+<style>
+  /* ── Screen content ── */
+  .screen-content {
+    flex: 1; overflow-y: auto; overflow-x: hidden;
+    scrollbar-width: thin; scrollbar-color: var(--n200) transparent;
+  }
+  .screen-content::-webkit-scrollbar { width: 4px; }
+  .screen-content::-webkit-scrollbar-thumb { background: var(--n200); border-radius: 2px; }
+
+  /* ── Empty state ── */
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; height: 100%; padding: 40px;
+    gap: 12px; text-align: center;
+  }
+  .empty-icon { font-size: 72px; opacity: .18; }
+  .empty-title { font-size: 16px; font-weight: 600; color: var(--n700); }
+  .empty-sub   { font-size: 13px; color: var(--n500); }
+  .btn-primary {
+    margin-top: 12px; background: var(--blue); color: #fff;
+    border: none; border-radius: var(--radius-sm); padding: 12px 28px;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+    transition: background .15s, transform .1s;
+  }
+  .btn-primary:hover { background: var(--blue-dark); transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+
+  /* ── PDF Grid ── */
+  .pdf-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px; padding: 8px 12px 80px;
+  }
+  .pdf-grid.single { grid-template-columns: 1fr; }
+
+  /* ── PDF Card ── */
+  .pdf-card {
+    background: #fff; border-radius: var(--radius);
+    box-shadow: var(--shadow); overflow: hidden;
+    cursor: pointer; transition: box-shadow .2s, transform .15s;
+    position: relative;
+  }
+  .pdf-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+  .phone.dark .pdf-card { background: #1c1c1e; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+
+  .card-thumb {
+    width: 100%; aspect-ratio: 0.707;
+    background: var(--n100); position: relative;
+    overflow: hidden; display: flex; align-items: center; justify-content: center;
+  }
+  .phone.dark .card-thumb { background: #2a2a2e; }
+  .card-thumb svg { opacity: .25; }
+
+  /* Fake rendered page content inside thumbnail */
+  .thumb-page {
+    position: absolute; inset: 0; padding: 8px;
+    display: flex; flex-direction: column; gap: 3px; background: #fff;
+  }
+  .thumb-line {
+    height: 3px; border-radius: 2px; background: var(--n300);
+  }
+  .thumb-line.dark-bg { background: var(--n700); }
+  .thumb-line.title { height: 5px; background: var(--n500); width: 70%; }
+  .thumb-line.title.dark-bg { background: var(--n400); }
+  .thumb-line.short { width: 45%; }
+  .thumb-cover {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: #fff; letter-spacing: .05em;
+  }
+
+  .card-meta { padding: 8px 4px 6px 10px; display: flex; align-items: flex-start; }
+  .card-info { flex: 1; min-width: 0; }
+  .card-title {
+    font-size: 12px; font-weight: 600; color: var(--n800);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    line-height: 1.3;
+  }
+  .phone.dark .card-title { color: #e5e5e5; }
+  .card-sub { font-size: 10px; color: var(--n500); margin-top: 2px; }
+  .card-menu-btn {
+    width: 28px; height: 28px; border-radius: 50%; border: none;
+    background: transparent; cursor: pointer; color: var(--n500);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; line-height: 1; flex-shrink: 0;
+    transition: background .15s;
+  }
+  .card-menu-btn:hover { background: var(--n100); }
+  .phone.dark .card-menu-btn:hover { background: var(--n800); }
+</style>
+
+<style>
+  /* ── FAB ── */
+  .fab {
+    position: absolute; bottom: 20px; right: 16px;
+    width: 52px; height: 52px; border-radius: 16px;
+    background: var(--blue); border: none; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(37,99,235,.45);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 24px; font-weight: 300;
+    transition: background .15s, transform .15s, box-shadow .15s;
+  }
+  .fab:hover { background: var(--blue-dark); transform: scale(1.06); box-shadow: 0 6px 20px rgba(37,99,235,.55); }
+
+  /* ── Reader screen ── */
+  .reader-pages {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 0; background: #fff;
+  }
+  .phone.dark .reader-pages { background: #1a1a1a; }
+  .phone.sepia .reader-pages { background: #F5E6C8; }
+
+  .reader-page {
+    width: 100%; aspect-ratio: 0.707;
+    background: #fff; position: relative;
+    display: flex; flex-direction: column;
+    padding: 14px 12px; gap: 4px; flex-shrink: 0;
+  }
+  .phone.dark .reader-page { background: #1e1e1e; }
+  .phone.sepia .reader-page { background: #F5E6C8; }
+
+  .reader-line {
+    height: 2.5px; border-radius: 2px; background: var(--n200); flex-shrink: 0;
+  }
+  .phone.dark .reader-line { background: #3a3a3a; }
+  .phone.sepia .reader-line { background: #c4a97a; }
+  .reader-line.h { height: 5px; background: var(--n500); width: 60%; }
+  .reader-line.s { width: 75%; }
+  .reader-line.xs { width: 35%; }
+
+  /* Page number pill */
+  .page-num-pill {
+    position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,.45); color: #fff; border-radius: 6px;
+    padding: 3px 10px; font-size: 10px; font-weight: 600;
+    white-space: nowrap;
+  }
+
+  /* Reader top bar overlay */
+  .reader-bar {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 10;
+    background: rgba(255,255,255,.95);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    display: flex; align-items: center; padding: 4px 4px 4px 4px;
+    border-bottom: 1px solid var(--n200);
+  }
+  .phone.dark .reader-bar {
+    background: rgba(18,18,18,.95); border-bottom-color: #333;
+  }
+  .phone.sepia .reader-bar {
+    background: rgba(245,230,200,.95); border-bottom-color: #c4a97a;
+  }
+  .reader-bar-title {
+    flex: 1; font-size: 14px; font-weight: 600; color: var(--n800);
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    padding: 0 4px;
+  }
+  .phone.dark .reader-bar-title { color: #e5e5e5; }
+  .phone.sepia .reader-bar-title { color: #5c3d12; }
+
+  /* "Add to Library" chip for temp opens */
+  .add-chip {
+    background: var(--blue); color: #fff; border: none;
+    border-radius: 8px; padding: 5px 10px; font-size: 11px; font-weight: 600;
+    cursor: pointer; margin-right: 6px; white-space: nowrap;
+    transition: background .15s;
+  }
+  .add-chip:hover { background: var(--blue-dark); }
+</style>
+
+<style>
+  /* ── Settings rows ── */
+  .settings-section-header {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--blue);
+    padding: 14px 20px 6px; flex-shrink: 0;
+  }
+  .phone.dark .settings-section-header { color: var(--blue-light); }
+  .settings-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 20px; gap: 12px; cursor: pointer;
+    transition: background .12s;
+  }
+  .settings-row:hover { background: var(--n50); }
+  .phone.dark .settings-row:hover { background: rgba(255,255,255,.04); }
+  .settings-row-text { flex: 1; min-width: 0; }
+  .settings-row-label {
+    font-size: 14px; font-weight: 500; color: var(--n800); line-height: 1.3;
+  }
+  .phone.dark .settings-row-label { color: #e5e5e5; }
+  .settings-row-sub {
+    font-size: 11px; color: var(--n500); margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .settings-divider { height: 1px; background: var(--n200); margin: 2px 0; flex-shrink: 0; }
+  .phone.dark .settings-divider { background: #2a2a2a; }
+
+  /* Toggle switch */
+  .toggle {
+    width: 42px; height: 24px; border-radius: 12px;
+    background: var(--n300); position: relative; flex-shrink: 0;
+    cursor: pointer; transition: background .2s;
+  }
+  .toggle.on { background: var(--blue); }
+  .toggle::after {
+    content: ''; position: absolute; top: 3px; left: 3px;
+    width: 18px; height: 18px; border-radius: 50%; background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    transition: transform .2s;
+  }
+  .toggle.on::after { transform: translateX(18px); }
+
+  /* ── Context menu dropdown ── */
+  .ctx-menu {
+    position: absolute; top: 100%; right: 4px; z-index: 100;
+    background: #fff; border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.18);
+    overflow: hidden; min-width: 140px;
+    animation: menuIn .12s ease;
+  }
+  .phone.dark .ctx-menu { background: #2a2a2e; }
+  @keyframes menuIn {
+    from { opacity: 0; transform: scale(.92) translateY(-4px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .ctx-item {
+    padding: 12px 16px; font-size: 13px; font-weight: 500;
+    cursor: pointer; color: var(--n700); transition: background .1s;
+  }
+  .phone.dark .ctx-item { color: #ddd; }
+  .ctx-item:hover { background: var(--n100); }
+  .phone.dark .ctx-item:hover { background: rgba(255,255,255,.06); }
+  .ctx-item.danger { color: var(--err); }
+
+  /* ── Modal/dialog overlay ── */
+  .modal-overlay {
+    position: absolute; inset: 0; z-index: 200;
+    background: rgba(0,0,0,.45);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px; animation: fadeIn .15s ease;
+  }
+  @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+  .modal {
+    background: #fff; border-radius: 16px; width: 100%;
+    box-shadow: 0 8px 32px rgba(0,0,0,.28); overflow: hidden;
+    animation: slideUp .15s ease;
+  }
+  .phone.dark .modal { background: #1e1e1e; }
+  @keyframes slideUp {
+    from { opacity:0; transform: translateY(12px) scale(.97); }
+    to   { opacity:1; transform: translateY(0) scale(1); }
+  }
+  .modal-title { font-size: 16px; font-weight: 700; color: var(--n900); padding: 18px 18px 8px; }
+  .phone.dark .modal-title { color: #f0f0f0; }
+  .modal-body { padding: 4px 18px 8px; font-size: 13px; color: var(--n600); line-height: 1.5; }
+  .phone.dark .modal-body { color: var(--n400); }
+  .modal-input {
+    width: 100%; border: 1.5px solid var(--n300); border-radius: 8px;
+    padding: 10px 12px; font-size: 14px; margin-top: 8px; outline: none;
+    color: var(--n900); background: #fff;
+    transition: border-color .15s;
+  }
+  .modal-input:focus { border-color: var(--blue); }
+  .phone.dark .modal-input { background: #2a2a2e; border-color: #444; color: #e5e5e5; }
+  .modal-actions {
+    display: flex; justify-content: flex-end; gap: 4px;
+    padding: 8px 12px 14px;
+  }
+  .btn-text {
+    padding: 8px 14px; border: none; background: transparent;
+    font-size: 14px; font-weight: 600; border-radius: 8px;
+    cursor: pointer; color: var(--blue); transition: background .12s;
+  }
+  .btn-text:hover { background: var(--blue-bg); }
+  .btn-text.danger { color: var(--err); }
+  .btn-text.danger:hover { background: #FEE2E2; }
+
+  /* ── Feature pills below phones ── */
+  .feature-row {
+    display: flex; gap: 10px; flex-wrap: wrap;
+    justify-content: center; margin-bottom: 48px;
+  }
+  .feature-pill {
+    background: #fff; border: 1.5px solid var(--n200);
+    border-radius: 100px; padding: 7px 16px;
+    font-size: 12px; font-weight: 600; color: var(--n600);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .feature-pill .dot {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--blue);
+  }
+
+  /* ── Tech stack section ── */
+  .stack-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 14px; margin-bottom: 60px;
+  }
+  .stack-card {
+    background: #fff; border-radius: var(--radius); padding: 18px 16px;
+    box-shadow: var(--shadow);
+  }
+  .stack-card .label { font-size: 11px; font-weight: 600; color: var(--n500); text-transform: uppercase; letter-spacing: .06em; }
+  .stack-card .value { font-size: 14px; font-weight: 700; color: var(--n800); margin-top: 4px; }
+
+  /* ── Flow diagram ── */
+  .flow {
+    display: flex; align-items: center; justify-content: center;
+    gap: 0; flex-wrap: wrap; margin-bottom: 60px;
+  }
+  .flow-step {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 6px; padding: 18px 24px; background: #fff;
+    border-radius: var(--radius); box-shadow: var(--shadow); min-width: 110px;
+  }
+  .flow-step .icon { font-size: 28px; }
+  .flow-step .name { font-size: 12px; font-weight: 700; color: var(--n700); }
+  .flow-arrow { font-size: 20px; color: var(--n300); padding: 0 6px; }
+
+  /* ── Footer ── */
+  .page-footer {
+    background: var(--n900); color: var(--n500);
+    text-align: center; padding: 24px;
+    font-size: 12px; margin-top: 20px;
+  }
+  .page-footer strong { color: #fff; }
+
+  /* ── Colour swatches (settings) ── */
+  .swatch-section {
+    padding: 4px 16px 8px;
+  }
+  .swatch-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--blue);
+    margin-bottom: 10px;
+  }
+  .swatch-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+    gap: 10px;
+  }
+  .swatch {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    cursor: pointer; position: relative;
+    transition: transform .12s;
+  }
+  .swatch:hover { transform: scale(1.10); }
+  .swatch::before {
+    content: '';
+    display: block;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: inherit;
+    /* Use background from inline style — inherited via parent */
+    background: var(--swatch-bg, #ccc);
+    box-shadow: 0 1px 4px rgba(0,0,0,.18);
+    transition: box-shadow .12s;
+  }
+  /* Override: use the element's own background-color */
+  .swatch { background-color: transparent !important; }
+  .swatch-check {
+    position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+    font-size: 13px; color: #fff; font-weight: 700;
+    display: none; pointer-events: none;
+  }
+  .swatch.on .swatch-check { display: block; }
+  .swatch-name {
+    font-size: 8px; color: var(--n500); text-align: center;
+    line-height: 1.2; white-space: nowrap;
+  }
+
+  /* Re-implement swatch circle properly */
+  .swatch-circle {
+    width: 32px; height: 32px; border-radius: 50%;
+    position: relative; cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,.2);
+    transition: transform .12s, box-shadow .12s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .swatch-circle:hover { transform: scale(1.12); box-shadow: 0 2px 8px rgba(0,0,0,.3); }
+  .swatch-circle.on { outline: 3px solid var(--blue); outline-offset: 2px; }
+  .swatch-circle .swatch-tick {
+    font-size: 13px; color: #fff; font-weight: 800; display: none;
+  }
+  .swatch-circle.on .swatch-tick { display: block; }
+
+  /* Rebuild swatch items using circle + label */
+  .swatch-item {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 4px; cursor: pointer;
+  }
+  .swatch-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px 6px; }
+
+  /* ── Card style picker ── */
+  .card-style-grid {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    gap: 8px; padding: 4px 0 12px;
+  }
+  .card-style-item {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 5px; cursor: pointer;
+  }
+  .card-style-item span {
+    font-size: 9px; color: var(--n500); font-weight: 500;
+  }
+  .card-style-item.on span { color: var(--blue); font-weight: 700; }
+  .csp {
+    width: 100%; aspect-ratio: 0.72;
+    border-radius: 6px; border: 1.5px solid var(--n200);
+    position: relative; overflow: hidden;
+    transition: border-color .15s;
+  }
+  .card-style-item.on .csp { border-color: var(--blue); }
+  .csp::after {
+    content: ''; position: absolute;
+    inset: 0; display: flex; flex-direction: column;
+    align-items: flex-start; justify-content: flex-start;
+    padding: 4px;
+  }
+  /* Preview line patterns inside each style */
+  .csp.elevated { background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.14); }
+  .csp.flat     { background: #fff; border-color: var(--n200); }
+  .csp.filled   { background: var(--n100); border-color: transparent; }
+  .csp.outlined { background: #fff; border: 1.5px solid var(--n400); }
+  .csp.compact  { background: #fff; }
+  /* fake content lines inside csp */
+  .csp .csp-thumb {
+    width: 100%; height: 55%; background: var(--n200);
+  }
+  .csp .csp-line {
+    height: 3px; background: var(--n300); border-radius: 2px;
+    margin: 3px 4px 0;
+  }
+  .csp .csp-line.short { width: 55%; }
+  .csp.compact .csp-thumb { display: none; }
+  .csp.compact .csp-line { margin-top: 5px; }
+  .phone.dark .csp.elevated { background: #1c1c1e; box-shadow: 0 2px 6px rgba(0,0,0,.5); }
+  .phone.dark .csp.flat, .phone.dark .csp.outlined, .phone.dark .csp.compact { background: #1c1c1e; }
+  .phone.dark .csp.filled { background: #2a2a2e; }
+  .phone.dark .csp .csp-thumb { background: #3a3a3e; }
+  .phone.dark .csp .csp-line { background: #4a4a4e; }
+</style>
+</head>
+
+<body>
+
+<!-- ══════════════════════ PAGE HEADER ══════════════════════ -->
+<header class="page-header">
+  <div class="logo">X</div>
+  <div>
+    <h1>PDFX</h1>
+    <p>The cleanest PDF reading experience on Android — Interactive UI Preview</p>
+  </div>
+</header>
+
+<div class="page-body">
+
+<!-- ══════════════════════ APP FLOW ══════════════════════ -->
+<p class="section-title">App Flow</p>
+<div class="flow">
+  <div class="flow-step"><div class="icon">📂</div><div class="name">Open App</div></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step"><div class="icon">📄</div><div class="name">Import PDF</div></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step"><div class="icon">👆</div><div class="name">Tap PDF</div></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step"><div class="icon">📖</div><div class="name">Read</div></div>
+</div>
+
+<!-- ══════════════════════ SCREEN 1 — EMPTY HOME ══════════════════════ -->
+<p class="section-title">Home Screen — Empty State</p>
+<div class="screens-row">
+  <div class="phone-wrap">
+    <div class="phone" id="phone-empty">
+      <!-- Status bar -->
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="status-right">
+          <span>●●●●</span><span>WiFi</span><span>🔋</span>
+        </div>
+      </div>
+      <!-- App bar -->
+      <div class="app-bar">
+        <span class="app-bar-title">PDFX</span>
+        <div class="app-bar-actions">
+          <button class="icon-btn" title="Settings" onclick="navigate('settings-light')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+        </div>
+      </div>
+      <!-- Empty state -->
+      <div class="screen-content">
+        <div class="empty-state">
+          <div class="empty-icon">📚</div>
+          <div class="empty-title">No PDFs yet</div>
+          <div class="empty-sub">Import a PDF to get started</div>
+          <button class="btn-primary" onclick="navigate('home-light')">+ Import PDF</button>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">Empty Library</div>
+  </div>
+
+  <!-- SCREEN 2 — HOME WITH LIBRARY (LIGHT) -->
+  <div class="phone-wrap">
+    <div class="phone" id="phone-home-light">
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="status-right"><span>●●●●</span><span>WiFi</span><span>🔋</span></div>
+      </div>
+      <div class="app-bar">
+        <span class="app-bar-title">PDFX</span>
+        <div class="app-bar-actions">
+          <button class="icon-btn" onclick="navigate('settings-light')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="screen-content" style="position:relative;">
+        <div class="pdf-grid">
+          <!-- Card 1 -->
+          <div class="pdf-card" onclick="navigate('reader-light')">
+            <div class="card-thumb">
+              <div class="thumb-page">
+                <div style="height:6px;background:#1e3a8a;border-radius:2px;width:80%;margin-bottom:4px;"></div>
+                <div class="thumb-line title"></div>
+                <div style="height:10px;"></div>
+                <div class="thumb-line"></div><div class="thumb-line s"></div>
+                <div class="thumb-line"></div><div class="thumb-line short"></div>
+                <div class="thumb-line s"></div><div class="thumb-line"></div>
+                <div class="thumb-line short"></div><div class="thumb-line s"></div>
+                <div class="thumb-line"></div>
+              </div>
+            </div>
+            <div class="card-meta">
+              <div class="card-info">
+                <div class="card-title">Design Systems</div>
+                <div class="card-sub">2.4 MB · 186p</div>
+              </div>
+              <button class="card-menu-btn" onclick="showMenu(event,'menu1')">⋮</button>
+              <div id="menu1" class="ctx-menu" style="display:none;">
+                <div class="ctx-item" onclick="showRename(event)">Rename</div>
+                <div class="ctx-item danger" onclick="closeAllMenus()">Remove</div>
+              </div>
+            </div>
+          </div>
+          <!-- Card 2 -->
+          <div class="pdf-card" onclick="navigate('reader-light')">
+            <div class="card-thumb">
+              <div class="thumb-page" style="background:#0f172a;">
+                <div style="height:6px;background:#60a5fa;border-radius:2px;width:65%;margin-bottom:4px;"></div>
+                <div class="thumb-line dark-bg title"></div>
+                <div style="height:8px;"></div>
+                <div class="thumb-line dark-bg"></div>
+                <div class="thumb-line dark-bg s"></div>
+                <div class="thumb-line dark-bg"></div>
+                <div class="thumb-line dark-bg short"></div>
+                <div class="thumb-line dark-bg s"></div>
+              </div>
+            </div>
+            <div class="card-meta">
+              <div class="card-info">
+                <div class="card-title">Kotlin Coroutines</div>
+                <div class="card-sub">1.1 MB · 94p</div>
+              </div>
+              <button class="card-menu-btn" onclick="showMenu(event,'menu2')">⋮</button>
+              <div id="menu2" class="ctx-menu" style="display:none;">
+                <div class="ctx-item" onclick="showRename(event)">Rename</div>
+                <div class="ctx-item danger" onclick="closeAllMenus()">Remove</div>
+              </div>
+            </div>
+          </div>
+          <!-- Card 3 -->
+          <div class="pdf-card" onclick="navigate('reader-sepia')">
+            <div class="card-thumb" style="background:#fef9c3;">
+              <div class="thumb-page" style="background:#fefce8;">
+                <div style="height:16px;background:#ca8a04;border-radius:2px;width:50%;margin-bottom:6px;"></div>
+                <div class="thumb-line" style="background:#d97706;width:70%;"></div>
+                <div style="height:6px;"></div>
+                <div class="thumb-line" style="background:#a16207;"></div>
+                <div class="thumb-line" style="background:#a16207;width:75%;"></div>
+                <div class="thumb-line" style="background:#a16207;width:55%;"></div>
+              </div>
+            </div>
+            <div class="card-meta">
+              <div class="card-info">
+                <div class="card-title">Clean Architecture</div>
+                <div class="card-sub">876 KB · 62p</div>
+              </div>
+              <button class="card-menu-btn" onclick="showMenu(event,'menu3')">⋮</button>
+              <div id="menu3" class="ctx-menu" style="display:none;">
+                <div class="ctx-item" onclick="showRename(event)">Rename</div>
+                <div class="ctx-item danger" onclick="closeAllMenus()">Remove</div>
+              </div>
+            </div>
+          </div>
+          <!-- Card 4 -->
+          <div class="pdf-card" onclick="navigate('reader-light')">
+            <div class="card-thumb">
+              <div class="thumb-page">
+                <div style="height:40px;background:linear-gradient(135deg,#2563eb,#7c3aed);border-radius:4px;margin-bottom:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:800;">MATERIAL 3</div>
+                <div class="thumb-line"></div><div class="thumb-line s"></div>
+                <div class="thumb-line short"></div><div class="thumb-line"></div>
+              </div>
+            </div>
+            <div class="card-meta">
+              <div class="card-info">
+                <div class="card-title">Material Design 3</div>
+                <div class="card-sub">3.2 MB · 210p</div>
+              </div>
+              <button class="card-menu-btn" onclick="showMenu(event,'menu4')">⋮</button>
+              <div id="menu4" class="ctx-menu" style="display:none;">
+                <div class="ctx-item" onclick="showRename(event)">Rename</div>
+                <div class="ctx-item danger" onclick="closeAllMenus()">Remove</div>
+              </div>
+            </div>
+          </div>
+          <!-- Card 5 -->
+          <div class="pdf-card" onclick="navigate('reader-light')">
+            <div class="card-thumb">
+              <div class="thumb-page">
+                <div class="thumb-line title"></div>
+                <div style="height:6px;"></div>
+                <div class="thumb-line"></div><div class="thumb-line short"></div>
+                <div class="thumb-line s"></div><div class="thumb-line"></div>
+                <div class="thumb-line short"></div>
+              </div>
+            </div>
+            <div class="card-meta">
+              <div class="card-info">
+                <div class="card-title">Android Dev Guide</div>
+                <div class="card-sub">5.6 MB · 312p</div>
+              </div>
+              <button class="card-menu-btn" onclick="showMenu(event,'menu5')">⋮</button>
+              <div id="menu5" class="ctx-menu" style="display:none;">
+                <div class="ctx-item" onclick="showRename(event)">Rename</div>
+                <div class="ctx-item danger" onclick="closeAllMenus()">Remove</div>
+              </div>
+            </div>
+          </div>
+          <!-- Card 6 -->
+          <div class="pdf-card" onclick="navigate('reader-light')">
+            <div class="card-thumb" style="background:#f0fdf4;">
+              <div class="thumb-page" style="background:#f0fdf4;">
+                <div style="height:5px;background:#16a34a;border-radius:2px;width:60%;margin-bottom:6px;"></div>
+                <div class="thumb-line" style="background:#bbf7d0;"></div>
+                <div class="thumb-line" style="background:#bbf7d0;width:75%;"></div>
+                <div class="thumb-line" style="background:#bbf7d0;width:50%;"></div>
+                <div class="thumb-line" style="background:#bbf7d0;"></div>
+              </div>
+            </div>
+            <div class="card-meta">
+              <div class="card-info">
+                <div class="card-title">Jetpack Compose</div>
+                <div class="card-sub">4.1 MB · 248p</div>
+              </div>
+              <button class="card-menu-btn" onclick="showMenu(event,'menu6')">⋮</button>
+              <div id="menu6" class="ctx-menu" style="display:none;">
+                <div class="ctx-item" onclick="showRename(event)">Rename</div>
+                <div class="ctx-item danger" onclick="closeAllMenus()">Remove</div>
+              </div>
+            </div>
+          </div>
+        </div><!-- /pdf-grid -->
+
+        <!-- FAB -->
+        <button class="fab">+</button>
+
+        <!-- Rename dialog (hidden) -->
+        <div class="modal-overlay" id="rename-dialog" style="display:none;" onclick="if(event.target===this)closeRename()">
+          <div class="modal">
+            <div class="modal-title">Rename</div>
+            <div class="modal-body">
+              <input class="modal-input" value="Design Systems" id="rename-input" />
+            </div>
+            <div class="modal-actions">
+              <button class="btn-text" onclick="closeRename()">Cancel</button>
+              <button class="btn-text" onclick="closeRename()">Rename</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /screen-content -->
+    </div><!-- /phone -->
+    <div class="phone-label">Library — Light</div>
+  </div>
+
+  <!-- SCREEN 3 — HOME DARK -->
+  <div class="phone-wrap">
+    <div class="phone dark" id="phone-home-dark">
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="status-right"><span>●●●●</span><span>WiFi</span><span>🔋</span></div>
+      </div>
+      <div class="app-bar" style="border-bottom:1px solid #222;">
+        <span class="app-bar-title">PDFX</span>
+        <div class="app-bar-actions">
+          <button class="icon-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="screen-content" style="position:relative;">
+        <div class="pdf-grid">
+          <div class="pdf-card" onclick="navigate('reader-dark')">
+            <div class="card-thumb">
+              <div class="thumb-page" style="background:#1a1a2e;">
+                <div style="height:6px;background:#60a5fa;border-radius:2px;width:75%;margin-bottom:5px;"></div>
+                <div class="thumb-line dark-bg"></div><div class="thumb-line dark-bg s"></div>
+                <div class="thumb-line dark-bg short"></div><div class="thumb-line dark-bg"></div>
+                <div class="thumb-line dark-bg s"></div>
+              </div>
+            </div>
+            <div class="card-meta">
+              <div class="card-info"><div class="card-title">Design Systems</div><div class="card-sub">2.4 MB · 186p</div></div>
+              <button class="card-menu-btn">⋮</button>
+            </div>
+          </div>
+          <div class="pdf-card" onclick="navigate('reader-dark')">
+            <div class="card-thumb">
+              <div class="thumb-page" style="background:#0d1117;">
+                <div style="height:5px;background:#7c3aed;border-radius:2px;width:60%;margin-bottom:5px;"></div>
+                <div class="thumb-line dark-bg"></div><div class="thumb-line dark-bg s"></div>
+                <div class="thumb-line dark-bg short"></div>
+              </div>
+            </div>
+            <div class="card-meta">
+              <div class="card-info"><div class="card-title">Kotlin Coroutines</div><div class="card-sub">1.1 MB · 94p</div></div>
+              <button class="card-menu-btn">⋮</button>
+            </div>
+          </div>
+          <div class="pdf-card" onclick="navigate('reader-dark')">
+            <div class="card-thumb"><div class="thumb-page" style="background:#111827;">
+              <div class="thumb-line dark-bg title"></div><div style="height:6px;"></div>
+              <div class="thumb-line dark-bg"></div><div class="thumb-line dark-bg s"></div>
+              <div class="thumb-line dark-bg short"></div>
+            </div></div>
+            <div class="card-meta">
+              <div class="card-info"><div class="card-title">Clean Architecture</div><div class="card-sub">876 KB · 62p</div></div>
+              <button class="card-menu-btn">⋮</button>
+            </div>
+          </div>
+          <div class="pdf-card" onclick="navigate('reader-dark')">
+            <div class="card-thumb"><div class="thumb-page" style="background:#1c1c2e;">
+              <div style="height:36px;background:linear-gradient(135deg,#1d4ed8,#5b21b6);border-radius:4px;margin-bottom:5px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:800;">MATERIAL 3</div>
+              <div class="thumb-line dark-bg"></div><div class="thumb-line dark-bg s"></div>
+            </div></div>
+            <div class="card-meta">
+              <div class="card-info"><div class="card-title">Material Design 3</div><div class="card-sub">3.2 MB · 210p</div></div>
+              <button class="card-menu-btn">⋮</button>
+            </div>
+          </div>
+          <div class="pdf-card" onclick="navigate('reader-dark')">
+            <div class="card-thumb"><div class="thumb-page" style="background:#161b22;">
+              <div class="thumb-line dark-bg title"></div><div style="height:5px;"></div>
+              <div class="thumb-line dark-bg"></div><div class="thumb-line dark-bg s"></div>
+              <div class="thumb-line dark-bg short"></div><div class="thumb-line dark-bg"></div>
+            </div></div>
+            <div class="card-meta">
+              <div class="card-info"><div class="card-title">Android Dev Guide</div><div class="card-sub">5.6 MB · 312p</div></div>
+              <button class="card-menu-btn">⋮</button>
+            </div>
+          </div>
+          <div class="pdf-card" onclick="navigate('reader-dark')">
+            <div class="card-thumb"><div class="thumb-page" style="background:#052e16;">
+              <div style="height:5px;background:#4ade80;border-radius:2px;width:65%;margin-bottom:5px;"></div>
+              <div class="thumb-line dark-bg"></div><div class="thumb-line dark-bg s"></div>
+              <div class="thumb-line dark-bg short"></div>
+            </div></div>
+            <div class="card-meta">
+              <div class="card-info"><div class="card-title">Jetpack Compose</div><div class="card-sub">4.1 MB · 248p</div></div>
+              <button class="card-menu-btn">⋮</button>
+            </div>
+          </div>
+        </div>
+        <button class="fab">+</button>
+      </div>
+    </div>
+    <div class="phone-label">Library — Dark</div>
+  </div>
+</div><!-- /screens-row -->
+
+<!-- ══════════════════════ READER SCREENS ══════════════════════ -->
+<p class="section-title">Reader Screen</p>
+<div class="screens-row">
+
+  <!-- READER LIGHT -->
+  <div class="phone-wrap">
+    <div class="phone" id="phone-reader-light" style="background:#fff;">
+      <div class="status-bar"><span>9:41</span><div class="status-right"><span>●●●●</span><span>🔋</span></div></div>
+      <div class="screen-content" style="position:relative; overflow-y:auto;">
+        <!-- Floating top bar -->
+        <div class="reader-bar" id="rbar-light">
+          <button class="icon-btn" onclick="navigate('home-light')" style="flex-shrink:0;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+          </button>
+          <span class="reader-bar-title">Design Systems</span>
+        </div>
+        <!-- Pages -->
+        <div class="reader-pages" style="padding-top:52px;">
+          <div class="reader-page">
+            <div style="height:8px;background:#1e3a8a;border-radius:3px;width:70%;margin-bottom:10px;"></div>
+            <div style="height:5px;background:#3b82f6;border-radius:2px;width:50%;margin-bottom:14px;"></div>
+            <div class="reader-line h"></div><div style="height:6px;"></div>
+            <div class="reader-line"></div><div class="reader-line s"></div>
+            <div class="reader-line"></div><div class="reader-line short"></div>
+            <div class="reader-line s"></div><div class="reader-line"></div>
+            <div class="reader-line"></div><div class="reader-line s"></div>
+            <div style="height:8px;"></div>
+            <div class="reader-line"></div><div class="reader-line short"></div>
+            <div class="reader-line s"></div><div class="reader-line"></div>
+            <div class="reader-line short"></div><div class="reader-line s"></div>
+            <div class="reader-line"></div>
+            <div class="page-num-pill">1 / 186</div>
+          </div>
+          <div class="reader-page">
+            <div class="reader-line h" style="width:45%;"></div><div style="height:8px;"></div>
+            <div class="reader-line"></div><div class="reader-line s"></div>
+            <div class="reader-line"></div><div class="reader-line short"></div>
+            <div class="reader-line s"></div><div class="reader-line"></div>
+            <div style="height:8px;background:var(--n100);border-radius:4px;"></div>
+            <div style="height:6px;"></div>
+            <div class="reader-line"></div><div class="reader-line s"></div>
+            <div class="reader-line short"></div><div class="reader-line"></div>
+            <div class="reader-line s"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">Reader — Light</div>
+  </div>
+
+  <!-- READER DARK -->
+  <div class="phone-wrap">
+    <div class="phone dark" id="phone-reader-dark">
+      <div class="status-bar"><span>9:41</span><div class="status-right"><span>●●●●</span><span>🔋</span></div></div>
+      <div class="screen-content" style="position:relative; background:#1a1a1a; overflow-y:auto;">
+        <div class="reader-bar" id="rbar-dark">
+          <button class="icon-btn" onclick="navigate('home-dark')" style="flex-shrink:0;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+          </button>
+          <span class="reader-bar-title">Kotlin Coroutines</span>
+        </div>
+        <div class="reader-pages" style="padding-top:52px; background:#1a1a1a;">
+          <div class="reader-page">
+            <div style="height:7px;background:#60a5fa;border-radius:3px;width:68%;margin-bottom:10px;"></div>
+            <div style="height:4px;background:#3b82f6;border-radius:2px;width:40%;margin-bottom:14px;"></div>
+            <div class="reader-line h" style="background:#4a4a4a;width:55%;"></div><div style="height:6px;"></div>
+            <div class="reader-line"></div><div class="reader-line s"></div>
+            <div class="reader-line"></div><div class="reader-line short"></div>
+            <div class="reader-line s"></div><div class="reader-line"></div>
+            <div class="reader-line"></div><div class="reader-line s"></div>
+            <div style="height:8px;"></div>
+            <div class="reader-line"></div><div class="reader-line short"></div>
+            <div class="reader-line s"></div><div class="reader-line"></div>
+            <div class="page-num-pill">3 / 94</div>
+          </div>
+          <div class="reader-page">
+            <div class="reader-line h" style="background:#4a4a4a;width:42%;"></div><div style="height:8px;"></div>
+            <div class="reader-line"></div><div class="reader-line s"></div>
+            <div class="reader-line"></div><div class="reader-line short"></div>
+            <div style="height:8px;background:#2a2a2a;border-radius:4px;"></div>
+            <div style="height:6px;"></div>
+            <div class="reader-line"></div><div class="reader-line s"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">Reader — Dark</div>
+  </div>
+
+  <!-- READER SEPIA -->
+  <div class="phone-wrap">
+    <div class="phone sepia" id="phone-reader-sepia">
+      <div class="status-bar"><span>9:41</span><div class="status-right"><span>●●●●</span><span>🔋</span></div></div>
+      <div class="screen-content" style="position:relative; background:#F5E6C8; overflow-y:auto;">
+        <div class="reader-bar">
+          <button class="icon-btn" onclick="navigate('home-light')" style="flex-shrink:0;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5c3d12" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+          </button>
+          <span class="reader-bar-title">Clean Architecture</span>
+        </div>
+        <div class="reader-pages" style="padding-top:52px;">
+          <div class="reader-page">
+            <div style="height:7px;background:#92400e;border-radius:3px;width:72%;margin-bottom:10px;"></div>
+            <div style="height:4px;background:#b45309;border-radius:2px;width:45%;margin-bottom:14px;"></div>
+            <div class="reader-line h" style="background:#a16207;width:58%;"></div><div style="height:6px;"></div>
+            <div class="reader-line"></div><div class="reader-line s"></div>
+            <div class="reader-line"></div><div class="reader-line short"></div>
+            <div class="reader-line s"></div><div class="reader-line"></div>
+            <div class="reader-line"></div><div class="reader-line s"></div>
+            <div style="height:8px;"></div>
+            <div class="reader-line"></div><div class="reader-line short"></div>
+            <div class="reader-line s"></div><div class="reader-line"></div>
+            <div class="page-num-pill" style="background:rgba(92,61,18,.55);">12 / 62</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">Reader — Sepia</div>
+  </div>
+
+  <!-- READER TEMP (external open) -->
+  <div class="phone-wrap">
+    <div class="phone" id="phone-reader-temp">
+      <div class="status-bar"><span>9:41</span><div class="status-right"><span>●●●●</span><span>🔋</span></div></div>
+      <div class="screen-content" style="position:relative; overflow-y:auto;">
+        <div class="reader-bar">
+          <button class="icon-btn" style="flex-shrink:0;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+          </button>
+          <span class="reader-bar-title" style="font-size:12px;">report_q3_2024.pdf</span>
+          <button class="add-chip">+ Add to Library</button>
+        </div>
+        <div class="reader-pages" style="padding-top:52px;">
+          <div class="reader-page">
+            <div style="height:8px;background:#dc2626;border-radius:3px;width:60%;margin-bottom:8px;"></div>
+            <div style="height:4px;background:#ef4444;border-radius:2px;width:40%;margin-bottom:14px;"></div>
+            <div class="reader-line h"></div><div style="height:6px;"></div>
+            <div class="reader-line"></div><div class="reader-line s"></div>
+            <div class="reader-line"></div><div class="reader-line short"></div>
+            <div class="reader-line s"></div><div class="reader-line"></div>
+            <div style="height:8px;"></div>
+            <div class="reader-line"></div><div class="reader-line short"></div>
+            <div class="page-num-pill">1 / 28</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">Temp Open (Gmail / WhatsApp)</div>
+  </div>
+
+</div><!-- /screens-row -->
+
+
+<!-- ══════════════════════ SETTINGS SCREEN ══════════════════════ -->
+<p class="section-title">Settings Screen</p>
+<div class="screens-row">
+
+  <!-- SETTINGS LIGHT -->
+  <div class="phone-wrap">
+    <div class="phone" id="phone-settings-light">
+      <div class="status-bar"><span>9:41</span><div class="status-right"><span>●●●●</span><span>🔋</span></div></div>
+      <div class="app-bar">
+        <button class="icon-btn" onclick="navigate('home-light')" style="margin-right:4px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        </button>
+        <span class="app-bar-title">Settings</span>
+      </div>
+      <div class="screen-content">
+        <div class="settings-section-header">Appearance</div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">App Theme</div><div class="settings-row-sub">System default</div></div></div>
+        <div class="swatch-section">
+          <div class="swatch-label">Accent Colour</div>
+          <div class="swatch-grid">
+            <div class="swatch on" data-group="al" style="background:#2563EB" onclick="selectSwatch(this,'al')"><span class="swatch-check">✓</span><span class="swatch-name">Blue</span></div>
+            <div class="swatch" data-group="al" style="background:#4F46E5" onclick="selectSwatch(this,'al')"><span class="swatch-check">✓</span><span class="swatch-name">Indigo</span></div>
+            <div class="swatch" data-group="al" style="background:#7C3AED" onclick="selectSwatch(this,'al')"><span class="swatch-check">✓</span><span class="swatch-name">Purple</span></div>
+            <div class="swatch" data-group="al" style="background:#DB2777" onclick="selectSwatch(this,'al')"><span class="swatch-check">✓</span><span class="swatch-name">Pink</span></div>
+            <div class="swatch" data-group="al" style="background:#DC2626" onclick="selectSwatch(this,'al')"><span class="swatch-check">✓</span><span class="swatch-name">Red</span></div>
+            <div class="swatch" data-group="al" style="background:#EA580C" onclick="selectSwatch(this,'al')"><span class="swatch-check">✓</span><span class="swatch-name">Orange</span></div>
+            <div class="swatch" data-group="al" style="background:#D97706" onclick="selectSwatch(this,'al')"><span class="swatch-check">✓</span><span class="swatch-name">Amber</span></div>
+            <div class="swatch" data-group="al" style="background:#16A34A" onclick="selectSwatch(this,'al')"><span class="swatch-check">✓</span><span class="swatch-name">Green</span></div>
+            <div class="swatch" data-group="al" style="background:#0D9488" onclick="selectSwatch(this,'al')"><span class="swatch-check">✓</span><span class="swatch-name">Teal</span></div>
+            <div class="swatch" data-group="al" style="background:#475569" onclick="selectSwatch(this,'al')"><span class="swatch-check">✓</span><span class="swatch-name">Slate</span></div>
+          </div>
+        </div>
+        <div class="settings-divider"></div>
+        <div class="settings-section-header">Reader</div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Reader Theme</div><div class="settings-row-sub">Light</div></div></div>
+        <div class="swatch-section">
+          <div class="swatch-label">Page Background</div>
+          <div class="swatch-grid">
+            <div class="swatch on" data-group="bl" style="background:#FFFFFF;outline:1px solid #ddd" onclick="selectSwatch(this,'bl')"><span class="swatch-check" style="color:#111">✓</span><span class="swatch-name" style="color:#666">White</span></div>
+            <div class="swatch" data-group="bl" style="background:#F5F5F5;outline:1px solid #ddd" onclick="selectSwatch(this,'bl')"><span class="swatch-check" style="color:#111">✓</span><span class="swatch-name" style="color:#666">Lt Grey</span></div>
+            <div class="swatch" data-group="bl" style="background:#FFFBF0;outline:1px solid #e8d9b0" onclick="selectSwatch(this,'bl')"><span class="swatch-check" style="color:#111">✓</span><span class="swatch-name" style="color:#666">Cream</span></div>
+            <div class="swatch" data-group="bl" style="background:#F5E6C8" onclick="selectSwatch(this,'bl')"><span class="swatch-check" style="color:#111">✓</span><span class="swatch-name" style="color:#666">Sepia</span></div>
+            <div class="swatch" data-group="bl" style="background:#EDD9A3" onclick="selectSwatch(this,'bl')"><span class="swatch-check" style="color:#111">✓</span><span class="swatch-name" style="color:#666">W.Sepia</span></div>
+            <div class="swatch" data-group="bl" style="background:#FFF1F2;outline:1px solid #ffc0cb" onclick="selectSwatch(this,'bl')"><span class="swatch-check" style="color:#111">✓</span><span class="swatch-name" style="color:#666">Rose</span></div>
+            <div class="swatch" data-group="bl" style="background:#1A1A1A" onclick="selectSwatch(this,'bl')"><span class="swatch-check">✓</span><span class="swatch-name">Dark</span></div>
+            <div class="swatch" data-group="bl" style="background:#2D2D2D" onclick="selectSwatch(this,'bl')"><span class="swatch-check">✓</span><span class="swatch-name">Dk Grey</span></div>
+            <div class="swatch" data-group="bl" style="background:#0F172A" onclick="selectSwatch(this,'bl')"><span class="swatch-check">✓</span><span class="swatch-name">Dk Blue</span></div>
+            <div class="swatch" data-group="bl" style="background:#0F1F0F" onclick="selectSwatch(this,'bl')"><span class="swatch-check">✓</span><span class="swatch-name">Dk Green</span></div>
+            <div class="swatch" data-group="bl" style="background:#1C1209" onclick="selectSwatch(this,'bl')"><span class="swatch-check">✓</span><span class="swatch-name">Dk Brown</span></div>
+            <div class="swatch" data-group="bl" style="background:#000000;outline:1px solid #333" onclick="selectSwatch(this,'bl')"><span class="swatch-check">✓</span><span class="swatch-name">AMOLED</span></div>
+          </div>
+        </div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Remember Reading Position</div><div class="settings-row-sub">Restore page, zoom, and scroll on reopen</div></div><div class="toggle on"></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Default Zoom</div><div class="settings-row-sub">Fit Width</div></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Keep Screen On</div><div class="settings-row-sub">Prevent screen from sleeping while reading</div></div><div class="toggle"></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Show Page Number</div></div><div class="toggle on"></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Enable Animations</div></div><div class="toggle on"></div></div>
+        <div class="settings-divider"></div>
+        <div class="settings-section-header">Library</div>
+        <div class="swatch-section">
+          <div class="swatch-label">Card Style</div>
+          <div class="card-style-grid">
+            <div class="card-style-item on" onclick="selectCardStyle(this)"><div class="csp elevated"></div><span>Elevated</span></div>
+            <div class="card-style-item" onclick="selectCardStyle(this)"><div class="csp flat"></div><span>Flat</span></div>
+            <div class="card-style-item" onclick="selectCardStyle(this)"><div class="csp filled"></div><span>Filled</span></div>
+            <div class="card-style-item" onclick="selectCardStyle(this)"><div class="csp outlined"></div><span>Outlined</span></div>
+            <div class="card-style-item" onclick="selectCardStyle(this)"><div class="csp compact"></div><span>Compact</span></div>
+          </div>
+        </div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Grid Layout</div><div class="settings-row-sub">Two Columns</div></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Sort By</div><div class="settings-row-sub">Newest First</div></div></div>
+        <div class="settings-divider"></div>
+        <div class="settings-section-header">About</div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Privacy Policy</div><div class="settings-row-sub">No data collected. Everything stays on your device.</div></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Open Source Licenses</div></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Version</div><div class="settings-row-sub">1.0.0</div></div></div>
+      </div>
+    </div>
+    <div class="phone-label">Settings — Light</div>
+  </div>
+
+  <!-- SETTINGS DARK -->
+  <div class="phone-wrap">
+    <div class="phone dark" id="phone-settings-dark">
+      <div class="status-bar"><span>9:41</span><div class="status-right"><span>●●●●</span><span>🔋</span></div></div>
+      <div class="app-bar" style="border-bottom:1px solid #222;">
+        <button class="icon-btn" style="margin-right:4px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        </button>
+        <span class="app-bar-title">Settings</span>
+      </div>
+      <div class="screen-content">
+        <div class="settings-section-header">Appearance</div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">App Theme</div><div class="settings-row-sub">Dark</div></div></div>
+        <div class="swatch-section">
+          <div class="swatch-label" style="color:#94a3b8">Accent Colour</div>
+          <div class="swatch-grid">
+            <div class="swatch" data-group="ad" style="background:#60A5FA" onclick="selectSwatch(this,'ad')"><span class="swatch-check">✓</span><span class="swatch-name">Blue</span></div>
+            <div class="swatch on" data-group="ad" style="background:#818CF8" onclick="selectSwatch(this,'ad')"><span class="swatch-check">✓</span><span class="swatch-name">Indigo</span></div>
+            <div class="swatch" data-group="ad" style="background:#A78BFA" onclick="selectSwatch(this,'ad')"><span class="swatch-check">✓</span><span class="swatch-name">Purple</span></div>
+            <div class="swatch" data-group="ad" style="background:#F472B6" onclick="selectSwatch(this,'ad')"><span class="swatch-check">✓</span><span class="swatch-name">Pink</span></div>
+            <div class="swatch" data-group="ad" style="background:#F87171" onclick="selectSwatch(this,'ad')"><span class="swatch-check">✓</span><span class="swatch-name">Red</span></div>
+            <div class="swatch" data-group="ad" style="background:#FB923C" onclick="selectSwatch(this,'ad')"><span class="swatch-check">✓</span><span class="swatch-name">Orange</span></div>
+            <div class="swatch" data-group="ad" style="background:#FBBF24" onclick="selectSwatch(this,'ad')"><span class="swatch-check">✓</span><span class="swatch-name">Amber</span></div>
+            <div class="swatch" data-group="ad" style="background:#4ADE80" onclick="selectSwatch(this,'ad')"><span class="swatch-check">✓</span><span class="swatch-name">Green</span></div>
+            <div class="swatch" data-group="ad" style="background:#2DD4BF" onclick="selectSwatch(this,'ad')"><span class="swatch-check">✓</span><span class="swatch-name">Teal</span></div>
+            <div class="swatch" data-group="ad" style="background:#94A3B8" onclick="selectSwatch(this,'ad')"><span class="swatch-check">✓</span><span class="swatch-name">Slate</span></div>
+          </div>
+        </div>
+        <div class="settings-divider"></div>
+        <div class="settings-section-header">Reader</div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Reader Theme</div><div class="settings-row-sub">Dark</div></div></div>
+        <div class="swatch-section">
+          <div class="swatch-label" style="color:#94a3b8">Page Background</div>
+          <div class="swatch-grid">
+            <div class="swatch" data-group="bd" style="background:#FFFFFF;outline:1px solid #555" onclick="selectSwatch(this,'bd')"><span class="swatch-check" style="color:#111">✓</span><span class="swatch-name" style="color:#666">White</span></div>
+            <div class="swatch" data-group="bd" style="background:#F5E6C8" onclick="selectSwatch(this,'bd')"><span class="swatch-check" style="color:#111">✓</span><span class="swatch-name" style="color:#666">Sepia</span></div>
+            <div class="swatch on" data-group="bd" style="background:#1A1A1A" onclick="selectSwatch(this,'bd')"><span class="swatch-check">✓</span><span class="swatch-name">Dark</span></div>
+            <div class="swatch" data-group="bd" style="background:#2D2D2D" onclick="selectSwatch(this,'bd')"><span class="swatch-check">✓</span><span class="swatch-name">Dk Grey</span></div>
+            <div class="swatch" data-group="bd" style="background:#0F172A" onclick="selectSwatch(this,'bd')"><span class="swatch-check">✓</span><span class="swatch-name">Dk Blue</span></div>
+            <div class="swatch" data-group="bd" style="background:#0F1F0F" onclick="selectSwatch(this,'bd')"><span class="swatch-check">✓</span><span class="swatch-name">Dk Green</span></div>
+            <div class="swatch" data-group="bd" style="background:#1C1209" onclick="selectSwatch(this,'bd')"><span class="swatch-check">✓</span><span class="swatch-name">Dk Brown</span></div>
+            <div class="swatch" data-group="bd" style="background:#000;outline:1px solid #333" onclick="selectSwatch(this,'bd')"><span class="swatch-check">✓</span><span class="swatch-name">AMOLED</span></div>
+          </div>
+        </div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Remember Reading Position</div></div><div class="toggle on"></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Default Zoom</div><div class="settings-row-sub">Fit Width</div></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Keep Screen On</div></div><div class="toggle"></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Show Page Number</div></div><div class="toggle on"></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Enable Animations</div></div><div class="toggle on"></div></div>
+        <div class="settings-divider"></div>
+        <div class="settings-section-header">Library</div>
+        <div class="swatch-section">
+          <div class="swatch-label" style="color:#94a3b8">Card Style</div>
+          <div class="card-style-grid">
+            <div class="card-style-item on" onclick="selectCardStyle(this)"><div class="csp elevated"></div><span>Elevated</span></div>
+            <div class="card-style-item" onclick="selectCardStyle(this)"><div class="csp flat"></div><span>Flat</span></div>
+            <div class="card-style-item" onclick="selectCardStyle(this)"><div class="csp filled"></div><span>Filled</span></div>
+            <div class="card-style-item" onclick="selectCardStyle(this)"><div class="csp outlined"></div><span>Outlined</span></div>
+            <div class="card-style-item" onclick="selectCardStyle(this)"><div class="csp compact"></div><span>Compact</span></div>
+          </div>
+        </div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Grid Layout</div><div class="settings-row-sub">Two Columns</div></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Sort By</div><div class="settings-row-sub">Newest First</div></div></div>
+        <div class="settings-divider"></div>
+        <div class="settings-section-header">About</div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Privacy Policy</div><div class="settings-row-sub">No data collected. Everything stays on your device.</div></div></div>
+        <div class="settings-row"><div class="settings-row-text"><div class="settings-row-label">Version</div><div class="settings-row-sub">1.0.0</div></div></div>
+      </div>
+    </div>
+    <div class="phone-label">Settings — Dark</div>
+  </div>
+
+</div><!-- /screens-row -->
+
+
+<!-- ══════════════════════ FEATURES ══════════════════════ -->
+<p class="section-title">Features</p>
+<div class="feature-row">
+  <div class="feature-pill"><div class="dot"></div>Zero ads, zero accounts</div>
+  <div class="feature-pill"><div class="dot"></div>No internet permission</div>
+  <div class="feature-pill"><div class="dot"></div>SAF persistent URIs</div>
+  <div class="feature-pill"><div class="dot"></div>Lazy thumbnail cache</div>
+  <div class="feature-pill"><div class="dot"></div>Pinch-to-zoom + double-tap</div>
+  <div class="feature-pill"><div class="dot"></div>Reading position memory</div>
+  <div class="feature-pill"><div class="dot"></div>Temp opens (Gmail / WhatsApp)</div>
+  <div class="feature-pill"><div class="dot"></div>Light · Dark · Sepia themes</div>
+  <div class="feature-pill"><div class="dot"></div>Material 3 + Dynamic Colour</div>
+  <div class="feature-pill"><div class="dot"></div>Rename without touching file</div>
+  <div class="feature-pill"><div class="dot"></div>Stale entry auto-cleanup</div>
+  <div class="feature-pill"><div class="dot"></div>2-column or single-column grid</div>
+</div>
+
+<!-- ══════════════════════ TECH STACK ══════════════════════ -->
+<p class="section-title">Tech Stack</p>
+<div class="stack-grid">
+  <div class="stack-card"><div class="label">Language</div><div class="value">Kotlin 1.9</div></div>
+  <div class="stack-card"><div class="label">UI</div><div class="value">Jetpack Compose</div></div>
+  <div class="stack-card"><div class="label">Design</div><div class="value">Material 3</div></div>
+  <div class="stack-card"><div class="label">Architecture</div><div class="value">MVVM + Repository</div></div>
+  <div class="stack-card"><div class="label">PDF Rendering</div><div class="value">Android PdfRenderer</div></div>
+  <div class="stack-card"><div class="label">Database</div><div class="value">Room 2.6</div></div>
+  <div class="stack-card"><div class="label">DI</div><div class="value">Hilt 2.51</div></div>
+  <div class="stack-card"><div class="label">Async</div><div class="value">Coroutines + Flow</div></div>
+  <div class="stack-card"><div class="label">Settings</div><div class="value">DataStore</div></div>
+  <div class="stack-card"><div class="label">Image Cache</div><div class="value">Coil 2.6</div></div>
+  <div class="stack-card"><div class="label">Min SDK</div><div class="value">API 26 (Android 8)</div></div>
+  <div class="stack-card"><div class="label">Target SDK</div><div class="value">API 34 (Android 14)</div></div>
+</div>
+
+</div><!-- /page-body -->
+
+<!-- ══════════════════════ FOOTER ══════════════════════ -->
+<footer class="page-footer">
+  <strong>PDFX</strong> — The cleanest PDF reading experience on Android.
+  &nbsp;·&nbsp; No ads &nbsp;·&nbsp; No account &nbsp;·&nbsp; No cloud &nbsp;·&nbsp; Everything on your device.
+</footer>
+
+<script>
+// ── Navigation between phone frames ──────────────────────────────────────────
+// Maps route keys to their phone element IDs
+const PHONE_MAP = {
+  'empty':         'phone-empty',
+  'home-light':    'phone-home-light',
+  'home-dark':     'phone-home-dark',
+  'reader-light':  'phone-reader-light',
+  'reader-dark':   'phone-reader-dark',
+  'reader-sepia':  'phone-reader-sepia',
+  'reader-temp':   'phone-reader-temp',
+  'settings-light':'phone-settings-light',
+  'settings-dark': 'phone-settings-dark',
+};
+
+function navigate(key) {
+  const targetId = PHONE_MAP[key];
+  if (!targetId) return;
+  const el = document.getElementById(targetId);
+  if (!el) return;
+  closeAllMenus();
+  // Scroll the target phone wrap into view smoothly
+  el.closest('.phone-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // Flash highlight ring
+  el.style.transition = 'box-shadow .15s';
+  el.style.boxShadow = '0 0 0 4px #2563EB, 0 24px 60px rgba(0,0,0,.35)';
+  setTimeout(() => {
+    el.style.boxShadow = '0 0 0 8px var(--n900), 0 24px 60px rgba(0,0,0,.35)';
+  }, 600);
+}
+
+// ── Context menu ──────────────────────────────────────────────────────────────
+function showMenu(event, menuId) {
+  event.stopPropagation();
+  closeAllMenus();
+  const menu = document.getElementById(menuId);
+  if (menu) menu.style.display = 'block';
+}
+
+function closeMenus() {
+  // Bug #11 fix: separated menu-close from dialog-close so that closing a
+  // context menu (e.g. via outside click or navigate()) never inadvertently
+  // hides the rename dialog, which is a different UI concern entirely.
+  document.querySelectorAll('.ctx-menu').forEach(m => m.style.display = 'none');
+}
+
+function closeDialog() {
+  const d = document.getElementById('rename-dialog');
+  if (d) d.style.display = 'none';
+}
+
+function closeAllMenus() {
+  // Kept for backward-compat with existing onclick= attributes in the HTML.
+  // Only called from places that legitimately want BOTH closed (e.g. showRename).
+  closeMenus();
+  closeDialog();
+}
+
+// Close menus on outside click — Bug #11 fix: use closeMenus() not closeAllMenus()
+// so clicking anywhere on the page never accidentally hides the rename dialog.
+document.addEventListener('click', () => {
+  closeMenus();
+});
+
+// ── Rename dialog ─────────────────────────────────────────────────────────────
+let _renameTargetTitle = null;
+
+function showRename(event) {
+  event.stopPropagation();
+  closeAllMenus();
+  // Find nearest card title
+  const card = event.target.closest('.pdf-card') ||
+               event.target.closest('.card-meta')?.closest('.pdf-card');
+  const title = card?.querySelector('.card-title')?.textContent || 'Document';
+  _renameTargetTitle = card?.querySelector('.card-title');
+
+  const input = document.getElementById('rename-input');
+  if (input) input.value = title;
+
+  const dialog = document.getElementById('rename-dialog');
+  if (dialog) {
+    dialog.style.display = 'flex';
+    setTimeout(() => input?.select(), 80);
+  }
+}
+
+function closeRename() {
+  const dialog = document.getElementById('rename-dialog');
+  const input  = document.getElementById('rename-input');
+  if (dialog)  dialog.style.display = 'none';
+  if (_renameTargetTitle && input && input.value.trim()) {
+    _renameTargetTitle.textContent = input.value.trim();
+  }
+  _renameTargetTitle = null;
+}
+
+// ── Reader bar auto-hide simulation ──────────────────────────────────────────
+// Tapping the reader screen toggles the top bar visibility
+document.querySelectorAll('[id^="phone-reader"]').forEach(phone => {
+  phone.addEventListener('click', function(e) {
+    if (e.target.closest('.reader-bar')) return; // ignore taps on the bar itself
+    const bars = this.querySelectorAll('.reader-bar');
+    bars.forEach(bar => {
+      const isHidden = bar.style.opacity === '0';
+      bar.style.transition = 'opacity .25s';
+      bar.style.opacity = isHidden ? '1' : '0';
+      bar.style.pointerEvents = isHidden ? 'auto' : 'none';
+      // Auto-restore after 3 s
+      if (!isHidden) {
+        clearTimeout(bar._restoreTimer);
+        bar._restoreTimer = setTimeout(() => {
+          bar.style.opacity = '1';
+          bar.style.pointerEvents = 'auto';
+        }, 3000);
+      }
+    });
+  });
+});
+
+// ── Toggle switches ───────────────────────────────────────────────────────────
+// Bug #10 fix: previously each toggle had BOTH an inline onclick attribute in
+// the HTML AND a JS addEventListener here, plus the row-level click handler.
+// Clicking the toggle fired: (1) toggle's own listener → toggle ON, then
+// (2) row's listener → toggle OFF again, making it appear to do nothing.
+//
+// Fix: a single delegated listener on each row is the only toggle handler.
+// The inline onclick attributes have been removed from the toggle elements.
+// e.stopPropagation() on the toggle prevents the row listener from double-firing.
+document.querySelectorAll('.settings-row').forEach(row => {
+  const toggle = row.querySelector('.toggle');
+  if (!toggle) return;
+
+  // Remove any inline onclick that may have been left in the HTML
+  toggle.removeAttribute('onclick');
+
+  // Single listener on the toggle — stop propagation so row listener doesn't fire
+  toggle.addEventListener('click', function(e) {
+    e.stopPropagation();
+    this.classList.toggle('on');
+  });
+
+  // Row click toggles the switch when user clicks the label area (not the toggle)
+  row.addEventListener('click', function(e) {
+    // If the click was on the toggle itself, its own listener already handled it
+    if (e.target === toggle || toggle.contains(e.target)) return;
+    toggle.classList.toggle('on');
+  });
+});
+
+// ── Colour swatch selection ───────────────────────────────────────────────────
+function selectSwatch(el, group) {
+  // Deselect all in the same group within the same phone
+  const phone = el.closest('.phone') || el.closest('.swatch-section');
+  const scope = el.closest('.swatch-grid');
+  if (scope) {
+    scope.querySelectorAll('.swatch[data-group="' + group + '"]').forEach(s => s.classList.remove('on'));
+    // If no data-group scoping, deselect all in grid
+    if (!el.dataset.group) {
+      scope.querySelectorAll('.swatch').forEach(s => s.classList.remove('on'));
+    }
+  }
+  el.classList.add('on');
+}
+
+// ── Card style selection ──────────────────────────────────────────────────────
+function selectCardStyle(el) {
+  const grid = el.closest('.card-style-grid');
+  if (grid) grid.querySelectorAll('.card-style-item').forEach(i => i.classList.remove('on'));
+  el.classList.add('on');
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeMenus();   // Esc closes menus but NOT the rename dialog (user typed in it)
+    closeDialog();  // also close dialog — standard UX for Esc
+  }
+  if (e.key === 'Enter') {
+    const dialog = document.getElementById('rename-dialog');
+    if (dialog && dialog.style.display !== 'none') closeRename();
+  }
+});
+
+// ── Init: inject preview structure into card style previews ──────────────────
+document.querySelectorAll('.csp').forEach(csp => {
+  const isCompact = csp.classList.contains('compact');
+  
+  if (!isCompact) {
+    const thumb = document.createElement('div');
+    thumb.className = 'csp-thumb';
+    csp.appendChild(thumb);
+  }
+  
+  // Add text lines
+  const line1 = document.createElement('div');
+  line1.className = 'csp-line';
+  csp.appendChild(line1);
+  
+  const line2 = document.createElement('div');
+  line2.className = 'csp-line short';
+  csp.appendChild(line2);
+});
+</script>
+
+</body>
+</html>

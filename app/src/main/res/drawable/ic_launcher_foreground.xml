@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- PDF document shape -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M34,24 L62,24 L74,36 L74,84 L34,84 Z" />
+    <path
+        android:fillColor="#DBEAFE"
+        android:pathData="M62,24 L62,36 L74,36 Z" />
+
+    <!-- "X" letterform for PDFX identity -->
+    <path
+        android:fillColor="#2563EB"
+        android:strokeColor="#2563EB"
+        android:strokeWidth="0"
+        android:pathData="
+            M43,50 L50.5,60 L43,70 L47,70 L52.5,62.5 L58,70 L62,70 L54.5,60 L62,50 L58,50 L52.5,57.5 L47,50 Z
+        " />
+</vector>

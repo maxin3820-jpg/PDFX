@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Legacy launcher icon for API < 26 (pre-adaptive icons).
+    Rendered as a square with brand blue background and the PDF document mark.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+
+    <!-- Blue background square -->
+    <path
+        android:fillColor="#2563EB"
+        android:pathData="M0,0 H48 V48 H0 Z" />
+
+    <!-- White document shape -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,6 L28,6 L36,14 L36,42 L12,42 Z" />
+
+    <!-- Document fold corner -->
+    <path
+        android:fillColor="#DBEAFE"
+        android:pathData="M28,6 L28,14 L36,14 Z" />
+
+    <!-- X mark in brand blue -->
+    <path
+        android:fillColor="#2563EB"
+        android:pathData="M17,20 L22,27 L17,34 L20,34 L24,28.5 L28,34 L31,34 L26,27 L31,20 L28,20 L24,25.5 L20,20 Z" />
+</vector>

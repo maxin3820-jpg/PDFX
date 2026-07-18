@@ -1,0 +1,247 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main, master, develop ]
+    paths-ignore:
+      - '**.md'
+      - 'preview/**'
+      - '.gitignore'
+      - 'PERFORMANCE*.md'
+      - 'OPTIMIZATION*.txt'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type (debug or release)'
+        required: true
+        default: 'debug'
+        type: choice
+        options:
+          - debug
+          - release
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Validate Gradle wrapper
+        uses: gradle/wrapper-validation-action@v2
+      
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+      
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-home-cache-cleanup: true
+      
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+      
+      - name: Create local.properties
+        run: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+          cat local.properties
+      
+      - name: Verify Android SDK
+        run: |
+          echo "Android SDK Root: $ANDROID_SDK_ROOT"
+          echo "Available SDK components:"
+          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --list_installed
+      
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+      
+      - name: Decode and create keystore (Release only)
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.event.inputs.build_type == 'release')
+        run: |
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/release-keystore.jks
+            echo "KEYSTORE_FILE_CREATED=true" >> $GITHUB_ENV
+            echo "✅ Keystore created successfully"
+          else
+            echo "KEYSTORE_FILE_CREATED=false" >> $GITHUB_ENV
+            echo "⚠️ No keystore found - will build unsigned release APK"
+          fi
+      
+      - name: Build Debug APK
+        if: github.event.inputs.build_type == 'debug' || github.event.inputs.build_type == ''
+        run: |
+          echo "🔨 Building Debug APK..."
+          ./gradlew assembleDebug --stacktrace --no-daemon --warning-mode=all
+          echo "✅ Debug APK built successfully"
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME }}
+      
+      - name: Build Release APK (Signed)
+        if: github.event.inputs.build_type == 'release' && env.KEYSTORE_FILE_CREATED == 'true'
+        run: |
+          echo "🔨 Building Signed Release APK..."
+          ./gradlew assembleRelease --stacktrace --no-daemon --warning-mode=all
+          echo "✅ Signed Release APK built successfully"
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME }}
+          KEYSTORE_FILE: ${{ github.workspace }}/app/release-keystore.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      
+      - name: Build Release APK (Unsigned)
+        if: github.event.inputs.build_type == 'release' && env.KEYSTORE_FILE_CREATED == 'false'
+        run: |
+          echo "🔨 Building Unsigned Release APK..."
+          ./gradlew assembleRelease --stacktrace --no-daemon --warning-mode=all
+          echo "⚠️ Release APK is unsigned - configure secrets for signed builds"
+          echo "✅ Unsigned Release APK built successfully"
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME }}
+      
+      - name: Get APK path and info
+        id: apk_info
+        run: |
+          if [ "${{ github.event.inputs.build_type }}" == "release" ]; then
+            APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+            BUILD_TYPE="release"
+          else
+            APK_PATH=$(find app/build/outputs/apk/debug -name "*.apk" | head -1)
+            BUILD_TYPE="debug"
+          fi
+          
+          if [ -f "$APK_PATH" ]; then
+            APK_SIZE=$(du -h "$APK_PATH" | cut -f1)
+            APK_SIZE_BYTES=$(stat -f%z "$APK_PATH" 2>/dev/null || stat -c%s "$APK_PATH")
+            APK_NAME=$(basename "$APK_PATH")
+            APK_SHA256=$(sha256sum "$APK_PATH" | cut -d' ' -f1)
+            
+            echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+            echo "apk_size=$APK_SIZE" >> $GITHUB_OUTPUT
+            echo "apk_size_bytes=$APK_SIZE_BYTES" >> $GITHUB_OUTPUT
+            echo "apk_name=$APK_NAME" >> $GITHUB_OUTPUT
+            echo "build_type=$BUILD_TYPE" >> $GITHUB_OUTPUT
+            echo "sha256=$APK_SHA256" >> $GITHUB_OUTPUT
+            
+            echo "✅ APK built successfully:"
+            echo "   📦 Name: $APK_NAME"
+            echo "   📏 Size: $APK_SIZE ($APK_SIZE_BYTES bytes)"
+            echo "   🔒 SHA256: $APK_SHA256"
+          else
+            echo "❌ APK file not found!"
+            echo "Contents of apk directory:"
+            ls -la app/build/outputs/apk/ || true
+            exit 1
+          fi
+      
+      - name: Upload Debug APK
+        if: github.event.inputs.build_type == 'debug' || github.event.inputs.build_type == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdfx-debug-${{ github.run_number }}
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 30
+      
+      - name: Upload Release APK
+        if: github.event.inputs.build_type == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdfx-release-${{ github.run_number }}
+          path: app/build/outputs/apk/release/*.apk
+          retention-days: 90
+      
+      - name: Build Summary
+        run: |
+          echo "### 🎉 Build Successful!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Build Type** | ${{ steps.apk_info.outputs.build_type }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **APK Name** | \`${{ steps.apk_info.outputs.apk_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **APK Size** | ${{ steps.apk_info.outputs.apk_size }} (${{ steps.apk_info.outputs.apk_size_bytes }} bytes) |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Run Number** | #${{ github.run_number }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### 🔒 SHA256 Checksum" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.apk_info.outputs.sha256 }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📦 APK artifact has been uploaded and can be downloaded from the **Artifacts** section below." >> $GITHUB_STEP_SUMMARY
+      
+      - name: Cleanup keystore
+        if: always() && env.KEYSTORE_FILE_CREATED == 'true'
+        run: rm -f app/release-keystore.jks
+
+  lint:
+    name: Run Lint Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+      
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+      
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+      
+      - name: Create local.properties
+        run: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+      
+      - name: Run Lint
+        run: |
+          echo "🔍 Running lint checks..."
+          ./gradlew lintDebug --stacktrace --no-daemon
+          echo "✅ Lint checks completed"
+        continue-on-error: true
+      
+      - name: Upload Lint Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-report-${{ github.run_number }}
+          path: |
+            app/build/reports/lint-results-debug.html
+            app/build/reports/lint-results-debug.xml
+          retention-days: 30
+      
+      - name: Lint Summary
+        if: always()
+        run: |
+          echo "### 🔍 Lint Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f "app/build/reports/lint-results-debug.html" ]; then
+            echo "✅ Lint report generated successfully" >> $GITHUB_STEP_SUMMARY
+            echo "📊 Download the artifact to view detailed results" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Lint report not found" >> $GITHUB_STEP_SUMMARY
+          fi

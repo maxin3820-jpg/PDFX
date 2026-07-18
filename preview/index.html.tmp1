@@ -1,0 +1,920 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDFX â€” Preview</title>
+<style>
+  /* â”€â”€ Reset & base â”€â”€ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --blue:       #2563EB;
+    --blue-dark:  #1D4ED8;
+    --blue-light: #60A5FA;
+    --blue-bg:    #DBEAFE;
+    --n50:  #FAFAFA; --n100: #F4F4F5; --n200: #E4E4E7;
+    --n300: #D1D5DB; --n400: #9CA3AF; --n500: #6B7280;
+    --n600: #4B5563; --n700: #374151; --n800: #1F2937;
+    --n900: #111827; --n950: #0A0A0A;
+    --err: #EF4444;
+    --radius: 12px; --radius-sm: 8px;
+    --shadow: 0 1px 3px rgba(0,0,0,.10), 0 1px 2px rgba(0,0,0,.06);
+    --shadow-md: 0 4px 16px rgba(0,0,0,.12);
+  }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #F0F2F5;
+    color: var(--n900);
+    min-height: 100vh;
+  }
+</style>
+
+<style>
+  /* â”€â”€ Outer page layout â”€â”€ */
+  .page-header {
+    background: var(--n900); color: #fff;
+    padding: 24px 40px; display: flex; align-items: center; gap: 16px;
+  }
+  .page-header .logo {
+    width: 40px; height: 40px; background: var(--blue);
+    border-radius: 10px; display: flex; align-items: center;
+    justify-content: center; font-weight: 800; font-size: 16px; color: #fff;
+  }
+  .page-header h1 { font-size: 22px; font-weight: 700; }
+  .page-header p  { font-size: 13px; color: var(--n400); margin-top: 2px; }
+
+  .page-body {
+    max-width: 1280px; margin: 0 auto; padding: 48px 32px;
+  }
+  .section-title {
+    font-size: 13px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--n500); margin-bottom: 20px;
+  }
+  .screens-row {
+    display: flex; gap: 40px; flex-wrap: wrap;
+    justify-content: center; margin-bottom: 60px;
+  }
+
+  /* â”€â”€ Phone frame â”€â”€ */
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .phone-label {
+    font-size: 12px; font-weight: 600; color: var(--n500);
+    text-transform: uppercase; letter-spacing: .06em;
+  }
+  .phone {
+    width: 320px; height: 660px; background: #fff;
+    border-radius: 36px; overflow: hidden; position: relative;
+    box-shadow: 0 0 0 8px var(--n900), 0 24px 60px rgba(0,0,0,.35);
+    display: flex; flex-direction: column;
+  }
+  .phone.dark { background: var(--n950); }
+  .phone.sepia { background: #F5E6C8; }
+
+  /* status bar */
+  .status-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 20px 4px; font-size: 11px; font-weight: 600;
+    color: var(--n700); flex-shrink: 0;
+  }
+  .phone.dark .status-bar { color: #ccc; }
+  .phone.sepia .status-bar { color: #7a5c2e; }
+  .status-right { display: flex; gap: 6px; align-items: center; }
+
+  /* top app bar */
+  .app-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 8px 6px 16px; min-height: 52px; flex-shrink: 0;
+  }
+  .app-bar-title {
+    font-size: 18px; font-weight: 700; color: var(--n900); flex: 1;
+  }
+  .phone.dark .app-bar-title { color: #f0f0f0; }
+  .app-bar-actions { display: flex; gap: 4px; }
+  .icon-btn {
+    width: 40px; height: 40px; border-radius: 50%; border: none;
+    background: transparent; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; color: var(--n600);
+    transition: background .15s;
+  }
+  .icon-btn:hover { background: var(--n100); }
+  .phone.dark .icon-btn { color: #aaa; }
+  .phone.dark .icon-btn:hover { background: var(--n800); }
+</style>
+
+<style>
+  /* â”€â”€ Screen content â”€â”€ */
+  .screen-content {
+    flex: 1; overflow-y: auto; overflow-x: hidden;
+    scrollbar-width: thin; scrollbar-color: var(--n200) transparent;
+  }
+  .screen-content::-webkit-scrollbar { width: 4px; }
+  .screen-content::-webkit-scrollbar-thumb { background: var(--n200); border-radius: 2px; }
+
+  /* â”€â”€ Empty state â”€â”€ */
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; height: 100%; padding: 40px;
+    gap: 12px; text-align: center;
+  }
+  .empty-icon { font-size: 72px; opacity: .18; }
+  .empty-title { font-size: 16px; font-weight: 600; color: var(--n700); }
+  .empty-sub   { font-size: 13px; color: var(--n500); }
+  .btn-primary {
+    margin-top: 12px; background: var(--blue); color: #fff;
+    border: none; border-radius: var(--radius-sm); padding: 12px 28px;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+    transition: background .15s, transform .1s;
+  }
+  .btn-primary:hover { background: var(--blue-dark); transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+
+  /* â”€â”€ PDF Grid â”€â”€ */
+  .pdf-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px; padding: 8px 12px 80px;
+  }
+  .pdf-grid.single { grid-template-columns: 1fr; }
+
+  /* â”€â”€ PDF Card â”€â”€ */
+  .pdf-card {
+    background: #fff; border-radius: var(--radius);
+    box-shadow: var(--shadow); overflow: hidden;
+    cursor: pointer; transition: box-shadow .2s, transform .15s;
+    position: relative;
+  }
+  .pdf-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+  .phone.dark .pdf-card { background: #1c1c1e; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+
+  .card-thumb {
+    width: 100%; aspect-ratio: 0.707;
+    background: var(--n100); position: relative;
+    overflow: hidden; display: flex; align-items: center; justify-content: center;
+  }
+  .phone.dark .card-thumb { background: #2a2a2e; }
+  .card-thumb svg { opacity: .25; }
+
+  /* Fake rendered page content inside thumbnail */
+  .thumb-page {
+    position: absolute; inset: 0; padding: 8px;
+    display: flex; flex-direction: column; gap: 3px; background: #fff;
+  }
+  .thumb-line {
+    height: 3px; border-radius: 2px; background: var(--n300);
+  }
+  .thumb-line.dark-bg { background: var(--n700); }
+  .thumb-line.title { height: 5px; background: var(--n500); width: 70%; }
+  .thumb-line.title.dark-bg { background: var(--n400); }
+  .thumb-line.short { width: 45%; }
+  .thumb-cover {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: #fff; letter-spacing: .05em;
+  }
+
+  .card-meta { padding: 8px 4px 6px 10px; display: flex; align-items: flex-start; }
+  .card-info { flex: 1; min-width: 0; }
+  .card-title {
+    font-size: 12px; font-weight: 600; color: var(--n800);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    line-height: 1.3;
+  }
+  .phone.dark .card-title { color: #e5e5e5; }
+  .card-sub { font-size: 10px; color: var(--n500); margin-top: 2px; }
+  .card-menu-btn {
+    width: 28px; height: 28px; border-radius: 50%; border: none;
+    background: transparent; cursor: pointer; color: var(--n500);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; line-height: 1; flex-shrink: 0;
+    transition: background .15s;
+  }
+  .card-menu-btn:hover { background: var(--n100); }
+  .phone.dark .card-menu-btn:hover { background: var(--n800); }
+</style>
+
+<style>
+  /* â”€â”€ FAB â”€â”€ */
+  .fab {
+    position: absolute; bottom: 20px; right: 16px;
+    width: 52px; height: 52px; border-radius: 16px;
+    background: var(--blue); border: none; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(37,99,235,.45);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 24px; font-weight: 300;
+    transition: background .15s, transform .15s, box-shadow .15s;
+  }
+  .fab:hover { background: var(--blue-dark); transform: scale(1.06); box-shadow: 0 6px 20px rgba(37,99,235,.55); }
+
+  /* â”€â”€ Reader screen â”€â”€ */
+  .reader-pages {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 0; background: #fff;
+  }
+  .phone.dark .reader-pages { background: #1a1a1a; }
+  .phone.sepia .reader-pages { background: #F5E6C8; }
+
+  .reader-page {
+    width: 100%; aspect-ratio: 0.707;
+    background: #fff; position: relative;
+    display: flex; flex-direction: column;
+    padding: 14px 12px; gap: 4px; flex-shrink: 0;
+  }
+  .phone.dark .reader-page { background: #1e1e1e; }
+  .phone.sepia .reader-page { background: #F5E6C8; }
+
+  .reader-line {
+    height: 2.5px; border-radius: 2px; background: var(--n200); flex-shrink: 0;
+  }
+  .phone.dark .reader-line { background: #3a3a3a; }
+  .phone.sepia .reader-line { background: #c4a97a; }
+  .reader-line.h { height: 5px; background: var(--n500); width: 60%; }
+  .reader-line.s { width: 75%; }
+  .reader-line.xs { width: 35%; }
+
+  /* Page number pill */
+  .page-num-pill {
+    position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,.45); color: #fff; border-radius: 6px;
+    padding: 3px 10px; font-size: 10px; font-weight: 600;
+    white-space: nowrap;
+  }
+
+  /* Reader top bar overlay */
+  .reader-bar {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 10;
+    background: rgba(255,255,255,.95);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    display: flex; align-items: center; padding: 4px 4px 4px 4px;
+    border-bottom: 1px solid var(--n200);
+  }
+  .phone.dark .reader-bar {
+    background: rgba(18,18,18,.95); border-bottom-color: #333;
+  }
+  .phone.sepia .reader-bar {
+    background: rgba(245,230,200,.95); border-bottom-color: #c4a97a;
+  }
+  .reader-bar-title {
+    flex: 1; font-size: 14px; font-weight: 600; color: var(--n800);
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    padding: 0 4px;
+  }
+  .phone.dark .reader-bar-title { color: #e5e5e5; }
+  .phone.sepia .reader-bar-title { color: #5c3d12; }
+
+  /* "Add to Library" chip for temp opens */
+  .add-chip {
+    background: var(--blue); color: #fff; border: none;
+    border-radius: 8px; padding: 5px 10px; font-size: 11px; font-weight: 600;
+    cursor: pointer; margin-right: 6px; white-space: nowrap;
+    transition: background .15s;
+  }
+  .add-chip:hover { background: var(--blue-dark); }
+</style>
+
+<style>
+  /* â”€â”€ Settings rows â”€â”€ */
+  .settings-section-header {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--blue);
+    padding: 14px 20px 6px; flex-shrink: 0;
+  }
+  .phone.dark .settings-section-header { color: var(--blue-light); }
+  .settings-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 20px; gap: 12px; cursor: pointer;
+    transition: background .12s;
+  }
+  .settings-row:hover { background: var(--n50); }
+  .phone.dark .settings-row:hover { background: rgba(255,255,255,.04); }
+  .settings-row-text { flex: 1; min-width: 0; }
+  .settings-row-label {
+    font-size: 14px; font-weight: 500; color: var(--n800); line-height: 1.3;
+  }
+  .phone.dark .settings-row-label { color: #e5e5e5; }
+  .settings-row-sub {
+    font-size: 11px; color: var(--n500); margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .settings-divider { height: 1px; background: var(--n200); margin: 2px 0; flex-shrink: 0; }
+  .phone.dark .settings-divider { background: #2a2a2a; }
+
+  /* Toggle switch */
+  .toggle {
+    width: 42px; height: 24px; border-radius: 12px;
+    background: var(--n300); position: relative; flex-shrink: 0;
+    cursor: pointer; transition: background .2s;
+  }
+  .toggle.on { background: var(--blue); }
+  .toggle::after {
+    content: ''; position: absolute; top: 3px; left: 3px;
+    width: 18px; height: 18px; border-radius: 50%; background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    transition: transform .2s;
+  }
+  .toggle.on::after { transform: translateX(18px); }
+
+  /* â”€â”€ Context menu dropdown â”€â”€ */
+  .ctx-menu {
+    position: absolute; top: 100%; right: 4px; z-index: 100;
+    background: #fff; border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.18);
+    overflow: hidden; min-width: 140px;
+    animation: menuIn .12s ease;
+  }
+  .phone.dark .ctx-menu { background: #2a2a2e; }
+  @keyframes menuIn {
+    from { opacity: 0; transform: scale(.92) translateY(-4px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .ctx-item {
+    padding: 12px 16px; font-size: 13px; font-weight: 500;
+    cursor: pointer; color: var(--n700); transition: background .1s;
+  }
+  .phone.dark .ctx-item { color: #ddd; }
+  .ctx-item:hover { background: var(--n100); }
+  .phone.dark .ctx-item:hover { background: rgba(255,255,255,.06); }
+  .ctx-item.danger { color: var(--err); }
+
+  /* â”€â”€ Modal/dialog overlay â”€â”€ */
+  .modal-overlay {
+    position: absolute; inset: 0; z-index: 200;
+    background: rgba(0,0,0,.45);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px; animation: fadeIn .15s ease;
+  }
+  @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+  .modal {
+    background: #fff; border-radius: 16px; width: 100%;
+    box-shadow: 0 8px 32px rgba(0,0,0,.28); overflow: hidden;
+    animation: slideUp .15s ease;
+  }
+  .phone.dark .modal { background: #1e1e1e; }
+  @keyframes slideUp {
+    from { opacity:0; transform: translateY(12px) scale(.97); }
+    to   { opacity:1; transform: translateY(0) scale(1); }
+  }
+  .modal-title { font-size: 16px; font-weight: 700; color: var(--n900); padding: 18px 18px 8px; }
+  .phone.dark .modal-title { color: #f0f0f0; }
+  .modal-body { padding: 4px 18px 8px; font-size: 13px; color: var(--n600); line-height: 1.5; }
+  .phone.dark .modal-body { color: var(--n400); }
+  .modal-input {
+    width: 100%; border: 1.5px solid var(--n300); border-radius: 8px;
+    padding: 10px 12px; font-size: 14px; margin-top: 8px; outline: none;
+    color: var(--n900); background: #fff;
+    transition: border-color .15s;
+  }
+  .modal-input:focus { border-color: var(--blue); }
+  .phone.dark .modal-input { background: #2a2a2e; border-color: #444; color: #e5e5e5; }
+  .modal-actions {
+    display: flex; justify-content: flex-end; gap: 4px;
+    padding: 8px 12px 14px;
+  }
+  .btn-text {
+    padding: 8px 14px; border: none; background: transparent;
+    font-size: 14px; font-weight: 600; border-radius: 8px;
+    cursor: pointer; color: var(--blue); transition: background .12s;
+  }
+  .btn-text:hover { background: var(--blue-bg); }
+  .btn-text.danger { color: var(--err); }
+  .btn-text.danger:hover { background: #FEE2E2; }
+
+  /* â”€â”€ Feature pills below phones â”€â”€ */
+  .feature-row {
+    display: flex; gap: 10px; flex-wrap: wrap;
+    justify-content: center; margin-bottom: 48px;
+  }
+  .feature-pill {
+    background: #fff; border: 1.5px solid var(--n200);
+    border-radius: 100px; padding: 7px 16px;
+    font-size: 12px; font-weight: 600; color: var(--n600);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .feature-pill .dot {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--blue);
+  }
+
+  /* â”€â”€ Tech stack section â”€â”€ */
+  .stack-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 14px; margin-bottom: 60px;
+  }
+  .stack-card {
+    background: #fff; border-radius: var(--radius); padding: 18px 16px;
+    box-shadow: var(--shadow);
+  }
+  .stack-card .label { font-size: 11px; font-weight: 600; color: var(--n500); text-transform: uppercase; letter-spacing: .06em; }
+  .stack-card .value { font-size: 14px; font-weight: 700; color: var(--n800); margin-top: 4px; }
+
+  /* â”€â”€ Flow diagram â”€â”€ */
+  .flow {
+    display: flex; align-items: center; justify-content: center;
+    gap: 0; flex-wrap: wrap; margin-bottom: 60px;
+  }
+  .flow-step {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 6px; padding: 18px 24px; background: #fff;
+    border-radius: var(--radius); box-shadow: var(--shadow); min-width: 110px;
+  }
+  .flow-step .icon { font-size: 28px; }
+  .flow-step .name { font-size: 12px; font-weight: 700; color: var(--n700); }
+  .flow-arrow { font-size: 20px; color: var(--n300); padding: 0 6px; }
+
+  /* â”€â”€ Footer â”€â”€ */
+  .page-footer {
+    background: var(--n900); color: var(--n500);
+    text-align: center; padding: 24px;
+    font-size: 12px; margin-top: 20px;
+  }
+  .page-footer strong { color: #fff; }
+</style>
+</head>
+
+<body>
+
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• PAGE HEADER â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<header class="page-header">
+  <div class="logo">X</div>
+  <div>
+    <h1>PDFX</h1>
+    <p>The cleanest PDF reading experience on Android â€” Interactive UI Preview</p>
+  </div>
+</header>
+
+<div class="page-body">
+
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• APP FLOW â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<p class="section-title">App Flow</p>
+<div class="flow">
+  <div class="flow-step"><div class="icon">ðŸ“‚</div><div class="name">Open App</div></div>
+  <div class="flow-arrow">â†’</div>
+  <div class="flow-step"><div class="icon">ðŸ“„</div><div class="name">Import PDF</div></div>
+  <div class="flow-arrow">â†’</div>
+  <div class="flow-step"><div class="icon">ðŸ‘†</div><div class="name">Tap PDF</div></div>
+  <div class="flow-arrow">â†’</div>
+  <div class="flow-step"><div class="icon">ðŸ“–</div><div class="name">Read</div></div>
+</div>
+
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• SCREEN 1 â€” EMPTY HOME â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<p class="section-title">Home Screen â€” Empty State</p>
+<div class="screens-row">
+  <div class="phone-wrap">
+    <div class="phone" id="phone-empty">
+      <!-- Status bar -->
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="status-right">
+          <span>â—â—â—â—</span><span>WiFi</span><span>ðŸ”‹</span>
+        </div>
+      </div>
+      <!-- App bar -->
+      <div class="app-bar">
+        <span class="app-bar-title">PDFX</span>
+        <div class="app-bar-actions">
+          <button class="icon-btn" title="Settings" onclick="navigate('settings-light')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+        </div>
+      </div>
+      <!-- Empty state -->
+      <div class="screen-content">
+        <div class="empty-state">
+          <div class="empty-icon">ðŸ“š</div>
+          <div class="empty-title">No PDFs yet</div>
+          <div class="empty-sub">Import a PDF to get started</div>
+          <button class="btn-primary" onclick="navigate('home-light')">+ Import PDF</button>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">Empty Library</div>
+  </div>
+
+  <!-- SCREEN 2 â€” HOME WITH LIBRARY (LIGHT) -->
+  <div class="phone-wrap">
+    <div class="phone" id="phone-home-light">
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="status-right"><span>â—â—â—â—</span><span>WiFi</span><span>ðŸ”‹</span></div>
+      </div>
+      <div class="app-bar">
+        <span class="app-bar-title">PDFX</span>
+        <div class="app-bar-actions">
+          <button class="icon-btn" onclick="navigate('settings-light')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="screen-content" style="position:relative;">
+        <div class="pdf-grid">
+          <!-- Card 1 -->
+          <div class="pdf-card" onclick="navigate('reader-light')">
+            <div class="card-thumb">
+              <div class="thumb-page">
+                <div style="height:6px;background:#1e3a8a;border-radius:2px;width:80%;margin-bottom:4px;"></div>
+                <div class="thumb-line title"></div>
+                <div style="height:10px;"></div>
+                <div class="thumb-line"></div><div class="thumb-line s"></div>
+                <div class="thumb-line"></div><div class="thumb-line short"></div>
+                <div class="thumb-line s"></div><div class="thumb-line"></div>
+                <div class="thumb-line short"></div><div class="thumb-line s"></div>
+                <div class="thumb-line"></div>
+              </div>
+            </div>
+            <div class="card-meta">
+              <div class="card-info">
+                <div class="card-title">Design Systems</div>
+                <div class="card-sub">2.4 MB Â· 186p</div>
+              </div>
+              <button class="card-menu-btn" onclick="showMenu(event,'menu1')">â‹®</button>
+              <div id="menu1" class="ctx-menu" style="display:none;">
+                <div class="ctx-item" onclick="showRename(event)">Rename</div>
+                <div class="ctx-item danger" onclick="closeAllMenus()">Remove</div>
+              </div>
+            </div>
+          </div>
+          <!-- Card 2 -->
+          <div class="pdf-card" onclick="navigate('reader-light')">
+            <div class="card-thumb">
+              <div class="thumb-page" style="background:#0f172a;">
+                <div style="height:6px;background:#60a5fa;border-radius:2px;width:65%;margin-bottom:4px;"></div>
+                <div class="thumb-line dark-bg title"></div>
+                <div style="height:8px;"></div>
+                <div class="thumb-line dark-bg"></div>
+                <div class="thumb-line dark-bg s"></div>
+                <div class="thumb-line dark-bg"></div>
+                <div class="thumb-line dark-bg short"></div>
+                <div class="thumb-line dark-bg s"></div>
+              </div>
+            </div>
+            <div class="card-meta">
+              <div class="card-info">
+                <div class="card-title">Kotlin Coroutines</div>
+                <div class="card-sub">1.1 MB Â· 94p</div>
+              </div>
+              <button class="card-menu-btn" onclick="showMenu(event,'menu2')">â‹®</button>
+              <div id="menu2" class="ctx-menu" style="display:none;">
+                <div class="ctx-item" onclick="showRename(event)">Rename</div>
+                <div class="ctx-item danger" onclick="closeAllMenus()">Remove</div>
+              </div>
+            </div>
+          </div>
+          <!-- Card 3 -->
+          <div class="pdf-card" onclick="navigate('reader-sepia')">
+            <div class="card-thumb" style="background:#fef9c3;">
+              <div class="thumb-page" style="background:#fefce8;">
+                <div style="height:16px;background:#ca8a04;border-radius:2px;width:50%;margin-bottom:6px;"></div>
+                <div class="thumb-line" style="background:#d97706;width:70%;"></div>
+                <div style="height:6px;"></div>
+                <div class="thumb-line" style="background:#a16207;"></div>
+                <div class="thumb-line" style="background:#a16207;width:75%;"></div>
+                <div class="thumb-line" style="background:#a16207;width:55%;"></div>
+              </div>
+            </div>
+            <div class="card-meta">
+              <div class="card-info">
+                <div class="card-title">Clean Architecture</div>
+                <div class="card-sub">876 KB Â· 62p</div>
+              </div>
+              <button class="card-menu-btn" onclick="showMenu(event,'menu3')">â‹®</button>
+              <div id="menu3" class="ctx-menu" style="display:none;">
+                <div class="ctx-item" onclick="showRename(event)">Rename</div>
+                <div class="ctx-item danger" onclick="closeAllMenus()">Remove</div>
+              </div>
+            </div>
+          </div>
+          <!-- Card 4 -->
+          <div class="pdf-card" onclick="navigate('reader-light')">
+            <div class="card-thumb">
+              <div class="thumb-page">
+                <div style="height:40px;background:linear-gradient(135deg,#2563eb,#7c3aed);border-radius:4px;margin-bottom:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:800;">MATERIAL 3</div>
+                <div class="thumb-line"></div><div class="thumb-line s"></div>
+                <div class="thumb-line short"></div><div class="thumb-line"></div>
+              </div>
+            </div>
+            <div class="card-meta">
+              <div class="card-info">
+                <div class="card-title">Material Design 3</div>
+                <div class="card-sub">3.2 MB Â· 210p</div>
+              </div>
+              <button class="card-menu-btn" onclick="showMenu(event,'menu4')">â‹®</button>
+              <div id="menu4" class="ctx-menu" style="display:none;">
+                <div class="ctx-item" onclick="showRename(event)">Rename</div>
+                <div class="ctx-item danger" onclick="closeAllMenus()">Remove</div>
+              </div>
+            </div>
+          </div>
+          <!-- Card 5 -->
+          <div class="pdf-card" onclick="navigate('reader-light')">
+            <div class="card-thumb">
+              <div class="thumb-page">
+                <div class="thumb-line title"></div>
+                <div style="height:6px;"></div>
+                <div class="thumb-line"></div><div class="thumb-line short"></div>
+                <div class="thumb-line s"></div><div class="thumb-line"></div>
+                <div class="thumb-line short"></div>
+              </div>
+            </div>
+            <div class="card-meta">
+              <div class="card-info">
+                <div class="card-title">Android Dev Guide</div>
+                <div class="card-sub">5.6 MB Â· 312p</div>
+              </div>
+              <button class="card-menu-btn" onclick="showMenu(event,'menu5')">â‹®</button>
+              <div id="menu5" class="ctx-menu" style="display:none;">
+                <div class="ctx-item" onclick="showRename(event)">Rename</div>
+                <div class="ctx-item danger" onclick="closeAllMenus()">Remove</div>
+              </div>
+            </div>
+          </div>
+          <!-- Card 6 -->
+          <div class="pdf-card" onclick="navigate('reader-light')">
+            <div class="card-thumb" style="background:#f0fdf4;">
+              <div class="thumb-page" style="background:#f0fdf4;">
+                <div style="height:5px;background:#16a34a;border-radius:2px;width:60%;margin-bottom:6px;"></div>
+                <div class="thumb-line" style="background:#bbf7d0;"></div>
+                <div class="thumb-line" style="background:#bbf7d0;width:75%;"></div>
+                <div class="thumb-line" style="background:#bbf7d0;width:50%;"></div>
+                <div class="thumb-line" style="background:#bbf7d0;"></div>
+              </div>
+            </div>
+            <div class="card-meta">
+              <div class="card-info">
+                <div class="card-title">Jetpack Compose</div>
+                <div class="card-sub">4.1 MB Â· 248p</div>
+              </div>
+              <button class="card-menu-btn" onclick="showMenu(event,'menu6')">â‹®</button>
+              <div id="menu6" class="ctx-menu" style="display:none;">
+                <div class="ctx-item" onclick="showRename(event)">Rename</div>
+                <div class="ctx-item danger" onclick="closeAllMenus()">Remove</div>
+              </div>
+            </div>
+          </div>
+        </div><!-- /pdf-grid -->
+
+        <!-- FAB -->
+        <button class="fab">+</button>
+
+        <!-- Rename dialog (hidden) -->
+        <div class="modal-overlay" id="rename-dialog" style="display:none;" onclick="if(event.target===this)closeRename()">
+          <div class="modal">
+            <div class="modal-title">Rename</div>
+            <div class="modal-body">
+              <input class="modal-input" value="Design Systems" id="rename-input" />
+            </div>
+            <div class="modal-actions">
+              <button class="btn-text" onclick="closeRename()">Cancel</button>
+              <button class="btn-text" onclick="closeRename()">Rename</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /screen-content -->
+    </div><!-- /phone -->
+    <div class="phone-label">Library â€” Light</div>
+  </div>
+
+  <!-- SCREEN 3 â€” HOME DARK -->
+  <div class="phone-wrap">
+    <div class="phone dark" id="phone-home-dark">
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="status-right"><span>â—â—â—â—</span><span>WiFi</span><span>ðŸ”‹</span></div>
+      </div>
+      <div class="app-bar" style="border-bottom:1px solid #222;">
+        <span class="app-bar-title">PDFX</span>
+        <div class="app-bar-actions">
+          <button class="icon-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="screen-content" style="position:relative;">
+        <div class="pdf-grid">
+          <div class="pdf-card" onclick="navigate('reader-dark')">
+            <div class="card-thumb">
+              <div class="thumb-page" style="background:#1a1a2e;">
+                <div style="height:6px;background:#60a5fa;border-radius:2px;width:75%;margin-bottom:5px;"></div>
+                <div class="thumb-line dark-bg"></div><div class="thumb-line dark-bg s"></div>
+                <div class="thumb-line dark-bg short"></div><div class="thumb-line dark-bg"></div>
+                <div class="thumb-line dark-bg s"></div>
+              </div>
+            </div>
+            <div class="card-meta">
+              <div class="card-info"><div class="card-title">Design Systems</div><div class="card-sub">2.4 MB Â· 186p</div></div>
+              <button class="card-menu-btn">â‹®</button>
+            </div>
+          </div>
+          <div class="pdf-card" onclick="navigate('reader-dark')">
+            <div class="card-thumb">
+              <div class="thumb-page" style="background:#0d1117;">
+                <div style="height:5px;background:#7c3aed;border-radius:2px;width:60%;margin-bottom:5px;"></div>
+                <div class="thumb-line dark-bg"></div><div class="thumb-line dark-bg s"></div>
+                <div class="thumb-line dark-bg short"></div>
+              </div>
+            </div>
+            <div class="card-meta">
+              <div class="card-info"><div class="card-title">Kotlin Coroutines</div><div class="card-sub">1.1 MB Â· 94p</div></div>
+              <button class="card-menu-btn">â‹®</button>
+            </div>
+          </div>
+          <div class="pdf-card" onclick="navigate('reader-dark')">
+            <div class="card-thumb"><div class="thumb-page" style="background:#111827;">
+              <div class="thumb-line dark-bg title"></div><div style="height:6px;"></div>
+              <div class="thumb-line dark-bg"></div><div class="thumb-line dark-bg s"></div>
+              <div class="thumb-line dark-bg short"></div>
+            </div></div>
+            <div class="card-meta">
+              <div class="card-info"><div class="card-title">Clean Architecture</div><div class="card-sub">876 KB Â· 62p</div></div>
+              <button class="card-menu-btn">â‹®</button>
+            </div>
+          </div>
+          <div class="pdf-card" onclick="navigate('reader-dark')">
+            <div class="card-thumb"><div class="thumb-page" style="background:#1c1c2e;">
+              <div style="height:36px;background:linear-gradient(135deg,#1d4ed8,#5b21b6);border-radius:4px;margin-bottom:5px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:800;">MATERIAL 3</div>
+              <div class="thumb-line dark-bg"></div><div class="thumb-line dark-bg s"></div>
+            </div></div>
+            <div class="card-meta">
+              <div class="card-info"><div class="card-title">Material Design 3</div><div class="card-sub">3.2 MB Â· 210p</div></div>
+              <button class="card-menu-btn">â‹®</button>
+            </div>
+          </div>
+          <div class="pdf-card" onclick="navigate('reader-dark')">
+            <div class="card-thumb"><div class="thumb-page" style="background:#161b22;">
+              <div class="thumb-line dark-bg title"></div><div style="height:5px;"></div>
+              <div class="thumb-line dark-bg"></div><div class="thumb-line dark-bg s"></div>
+              <div class="thumb-line dark-bg short"></div><div class="thumb-line dark-bg"></div>
+            </div></div>
+            <div class="card-meta">
+              <div class="card-info"><div class="card-title">Android Dev Guide</div><div class="card-sub">5.6 MB Â· 312p</div></div>
+              <button class="card-menu-btn">â‹®</button>
+            </div>
+          </div>
+          <div class="pdf-card" onclick="navigate('reader-dark')">
+            <div class="card-thumb"><div class="thumb-page" style="background:#052e16;">
+              <div style="height:5px;background:#4ade80;border-radius:2px;width:65%;margin-bottom:5px;"></div>
+              <div class="thumb-line dark-bg"></div><div class="thumb-line dark-bg s"></div>
+              <div class="thumb-line dark-bg short"></div>
+            </div></div>
+            <div class="card-meta">
+              <div class="card-info"><div class="card-title">Jetpack Compose</div><div class="card-sub">4.1 MB Â· 248p</div></div>
+              <button class="card-menu-btn">â‹®</button>
+            </div>
+          </div>
+        </div>
+        <button class="fab">+</button>
+      </div>
+    </div>
+    <div class="phone-label">Library â€” Dark</div>
+  </div>
+</div><!-- /screens-row -->
+
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• READER SCREENS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<p class="section-title">Reader Screen</p>
+<div class="screens-row">
+
+  <!-- READER LIGHT -->
+  <div class="phone-wrap">
+    <div class="phone" id="phone-reader-light" style="background:#fff;">
+      <div class="status-bar"><span>9:41</span><div class="status-right"><span>â—â—â—â—</span><span>ðŸ”‹</span></div></div>
+      <div class="screen-content" style="position:relative; overflow-y:auto;">
+        <!-- Floating top bar -->
+        <div class="reader-bar" id="rbar-light">
+          <button class="icon-btn" onclick="navigate('home-light')" style="flex-shrink:0;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+          </button>
+          <span class="reader-bar-title">Design Systems</span>
+        </div>
+        <!-- Pages -->
+        <div class="reader-pages" style="padding-top:52px;">
+          <div class="reader-page">
+            <div style="height:8px;background:#1e3a8a;border-radius:3px;width:70%;margin-bottom:10px;"></div>
+            <div style="height:5px;background:#3b82f6;border-radius:2px;width:50%;margin-bottom:14px;"></div>
+            <div class="reader-line h"></div><div style="height:6px;"></div>
+            <div class="reader-line"></div><div class="reader-line s"></div>
+            <div class="reader-line"></div><div class="reader-line short"></div>
+            <div class="reader-line s"></div><div class="reader-line"></div>
+            <div class="reader-line"></div><div class="reader-line s"></div>
+            <div style="height:8px;"></div>
+            <div class="reader-line"></div><div class="reader-line short"></div>
+            <div class="reader-line s"></div><div class="reader-line"></div>
+            <div class="reader-line short"></div><div class="reader-line s"></div>
+            <div class="reader-line"></div>
+            <div class="page-num-pill">1 / 186</div>
+          </div>
+          <div class="reader-page">
+            <div class="reader-line h" style="width:45%;"></div><div style="height:8px;"></div>
+            <div class="reader-line"></div><div class="reader-line s"></div>
+            <div class="reader-line"></div><div class="reader-line short"></div>
+            <div class="reader-line s"></div><div class="reader-line"></div>
+            <div style="height:8px;background:var(--n100);border-radius:4px;"></div>
+            <div style="height:6px;"></div>
+            <div class="reader-line"></div><div class="reader-line s"></div>
+            <div class="reader-line short"></div><div class="reader-line"></div>
+            <div class="reader-line s"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">Reader â€” Light</div>
+  </div>
+
+  <!-- READER DARK -->
+  <div class="phone-wrap">
+    <div class="phone dark" id="phone-reader-dark">
+      <div class="status-bar"><span>9:41</span><div class="status-right"><span>â—â—â—â—</span><span>ðŸ”‹</span></div></div>
+      <div class="screen-content" style="position:relative; background:#1a1a1a; overflow-y:auto;">
+        <div class="reader-bar" id="rbar-dark">
+          <button class="icon-btn" onclick="navigate('home-dark')" style="flex-shrink:0;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+          </button>
+          <span class="reader-bar-title">Kotlin Coroutines</span>
+        </div>
+        <div class="reader-pages" style="padding-top:52px; background:#1a1a1a;">
+          <div class="reader-page">
+            <div style="height:7px;background:#60a5fa;border-radius:3px;width:68%;margin-bottom:10px;"></div>
+            <div style="height:4px;background:#3b82f6;border-radius:2px;width:40%;margin-bottom:14px;"></div>
+            <div class="reader-line h" style="background:#4a4a4a;width:55%;"></div><div style="height:6px;"></div>
+            <div class="reader-line"></div><div class="reader-line s"></div>
+            <div class="reader-line"></div><div class="reader-line short"></div>
+            <div class="reader-line s"></div><div class="reader-line"></div>
+            <div class="reader-line"></div><div class="reader-line s"></div>
+            <div style="height:8px;"></div>
+            <div class="reader-line"></div><div class="reader-line short"></div>
+            <div class="reader-line s"></div><div class="reader-line"></div>
+            <div class="page-num-pill">3 / 94</div>
+          </div>
+          <div class="reader-page">
+            <div class="reader-line h" style="background:#4a4a4a;width:42%;"></div><div style="height:8px;"></div>
+            <div class="reader-line"></div><div class="reader-line s"></div>
+            <div class="reader-line"></div><div class="reader-line short"></div>
+            <div style="height:8px;background:#2a2a2a;border-radius:4px;"></div>
+            <div style="height:6px;"></div>
+            <div class="reader-line"></div><div class="reader-line s"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">Reader â€” Dark</div>
+  </div>
+
+  <!-- READER SEPIA -->
+  <div class="phone-wrap">
+    <div class="phone sepia" id="phone-reader-sepia">
+      <div class="status-bar"><span>9:41</span><div class="status-right"><span>â—â—â—â—</span><span>ðŸ”‹</span></div></div>
+      <div class="screen-content" style="position:relative; background:#F5E6C8; overflow-y:auto;">
+        <div class="reader-bar">
+          <button class="icon-btn" onclick="navigate('home-light')" style="flex-shrink:0;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5c3d12" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+          </button>
+          <span class="reader-bar-title">Clean Architecture</span>
+        </div>
+        <div class="reader-pages" style="padding-top:52px;">
+          <div class="reader-page">
+            <div style="height:7px;background:#92400e;border-radius:3px;width:72%;margin-bottom:10px;"></div>
+            <div style="height:4px;background:#b45309;border-radius:2px;width:45%;margin-bottom:14px;"></div>
+            <div class="reader-line h" style="background:#a16207;width:58%;"></div><div style="height:6px;"></div>
+            <div class="reader-line"></div><div class="reader-line s"></div>
+            <div class="reader-line"></div><div class="reader-line short"></div>
+            <div class="reader-line s"></div><div class="reader-line"></div>
+            <div class="reader-line"></div><div class="reader-line s"></div>
+            <div style="height:8px;"></div>
+            <div class="reader-line"></div><div class="reader-line short"></div>
+            <div class="reader-line s"></div><div class="reader-line"></div>
+            <div class="page-num-pill" style="background:rgba(92,61,18,.55);">12 / 62</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">Reader â€” Sepia</div>
+  </div>
+
+  <!-- READER TEMP (external open) -->
+  <div class="phone-wrap">
+    <div class="phone" id="phone-reader-temp">
+      <div class="status-bar"><span>9:41</span><div class="status-right"><span>â—â—â—â—</span><span>ðŸ”‹</span></div></div>
+      <div class="screen-content" style="position:relative; overflow-y:auto;">
+        <div class="reader-bar">
+          <button class="icon-btn" style="flex-shrink:0;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+          </button>
+          <span class="reader-bar-title" style="font-size:12px;">report_q3_2024.pdf</span>
+          <button class="add-chip">+ Add to Library</button>
+        </div>
+        <div class="reader-pages" style="padding-top:52px;">
+          <div class="reader-page">
+            <div style="height:8px;background:#dc2626;border-radius:3px;width:60%;margin-bottom:8px;"></div>
+            <div style="height:4px;background:#ef4444;border-radius:2px;width:40%;margin-bottom:14px;"></div>
+            <div class="reader-line h"></div><div style="height:6px;"></div>
+            <div class="reader-line"></div><div class="reader-line s"></div>
+            <div class="reader-line"></div><div class="reader-line short"></div>
+            <div class="reader-line s"></div><div class="reader-line"></div>
+            <div style="height:8px;"></div>
+            <div class="reader-line"></div><div class="reader-line short"></div>
+            <div class="page-num-pill">1 / 28</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">Temp Open (Gmail / WhatsApp)</div>
+  </div>
+
+</div><!-- /screens-row -->
+

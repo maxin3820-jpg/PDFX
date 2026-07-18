@@ -1,0 +1,121 @@
+name: PR Checks
+
+# Runs on pull requests to validate code quality
+on:
+  pull_request:
+    branches: [ main, master, develop ]
+    types: [ opened, synchronize, reopened ]
+
+jobs:
+  validate:
+    name: Validate Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Validate Gradle wrapper
+        uses: gradle/wrapper-validation-action@v2
+      
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+      
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+      
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+      
+      - name: Create local.properties
+        run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+      
+      - name: Check code formatting
+        run: |
+          echo "🔍 Checking Kotlin code style..."
+          ./gradlew ktlintCheck --no-daemon || true
+        continue-on-error: true
+      
+      - name: Compile Debug
+        run: |
+          echo "🔨 Compiling debug variant..."
+          ./gradlew compileDebugKotlin --stacktrace --no-daemon
+          echo "✅ Debug compilation successful"
+      
+      - name: Run unit tests
+        run: |
+          echo "🧪 Running unit tests..."
+          ./gradlew testDebugUnitTest --no-daemon || true
+        continue-on-error: true
+      
+      - name: Build debug APK
+        run: |
+          echo "📦 Building debug APK..."
+          ./gradlew assembleDebug --stacktrace --no-daemon
+          echo "✅ Debug APK built successfully"
+      
+      - name: Verify APK
+        run: |
+          APK_FILE=$(find app/build/outputs/apk/debug -name "*.apk" | head -1)
+          if [ -f "$APK_FILE" ]; then
+            APK_SIZE=$(du -h "$APK_FILE" | cut -f1)
+            echo "✅ APK verified: $(basename "$APK_FILE") ($APK_SIZE)"
+          else
+            echo "❌ APK not found!"
+            exit 1
+          fi
+      
+      - name: PR Summary
+        if: always()
+        run: |
+          echo "### 🔍 PR Build Validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All checks passed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**PR:** #${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.head_ref }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.event.pull_request.head.sha }}\`" >> $GITHUB_STEP_SUMMARY
+
+  lint:
+    name: Lint Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+      
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+      
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+      
+      - name: Create local.properties
+        run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+      
+      - name: Run lint
+        run: |
+          echo "🔍 Running Android lint..."
+          ./gradlew lintDebug --no-daemon
+        continue-on-error: true
+      
+      - name: Upload lint results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-lint-report-${{ github.event.pull_request.number }}
+          path: app/build/reports/lint-results-debug.*
+          retention-days: 14

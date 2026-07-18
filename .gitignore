@@ -1,0 +1,62 @@
+############################
+# Android / Gradle
+############################
+*.iml
+.gradle/
+local.properties
+.idea/
+.DS_Store
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Keystore files — never commit signing keys
+*.jks
+*.keystore
+keystore.txt
+release-keystore.*
+debug-keystore.*
+
+# Generated files
+app/src/main/assets/
+app/schemas/
+
+# Proguard mapping
+mapping.txt
+
+############################
+# Kotlin
+############################
+*.class
+*.jar (except gradle-wrapper.jar)
+
+############################
+# OS
+############################
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+############################
+# IDE
+############################
+*.iws
+*.ipr
+out/
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/gradle.xml
+.idea/dictionaries
+.idea/libraries
+.idea/caches
+
+############################
+# Gradle wrapper (keep the jar)
+############################
+!gradle/wrapper/gradle-wrapper.jar

@@ -1,0 +1,207 @@
+﻿
+<!-- ══════════════════════ FEATURES ══════════════════════ -->
+<p class="section-title">Features</p>
+<div class="feature-row">
+  <div class="feature-pill"><div class="dot"></div>Zero ads, zero accounts</div>
+  <div class="feature-pill"><div class="dot"></div>No internet permission</div>
+  <div class="feature-pill"><div class="dot"></div>SAF persistent URIs</div>
+  <div class="feature-pill"><div class="dot"></div>Lazy thumbnail cache</div>
+  <div class="feature-pill"><div class="dot"></div>Pinch-to-zoom + double-tap</div>
+  <div class="feature-pill"><div class="dot"></div>Reading position memory</div>
+  <div class="feature-pill"><div class="dot"></div>Temp opens (Gmail / WhatsApp)</div>
+  <div class="feature-pill"><div class="dot"></div>Light · Dark · Sepia themes</div>
+  <div class="feature-pill"><div class="dot"></div>Material 3 + Dynamic Colour</div>
+  <div class="feature-pill"><div class="dot"></div>Rename without touching file</div>
+  <div class="feature-pill"><div class="dot"></div>Stale entry auto-cleanup</div>
+  <div class="feature-pill"><div class="dot"></div>2-column or single-column grid</div>
+</div>
+
+<!-- ══════════════════════ TECH STACK ══════════════════════ -->
+<p class="section-title">Tech Stack</p>
+<div class="stack-grid">
+  <div class="stack-card"><div class="label">Language</div><div class="value">Kotlin 1.9</div></div>
+  <div class="stack-card"><div class="label">UI</div><div class="value">Jetpack Compose</div></div>
+  <div class="stack-card"><div class="label">Design</div><div class="value">Material 3</div></div>
+  <div class="stack-card"><div class="label">Architecture</div><div class="value">MVVM + Repository</div></div>
+  <div class="stack-card"><div class="label">PDF Rendering</div><div class="value">Android PdfRenderer</div></div>
+  <div class="stack-card"><div class="label">Database</div><div class="value">Room 2.6</div></div>
+  <div class="stack-card"><div class="label">DI</div><div class="value">Hilt 2.51</div></div>
+  <div class="stack-card"><div class="label">Async</div><div class="value">Coroutines + Flow</div></div>
+  <div class="stack-card"><div class="label">Settings</div><div class="value">DataStore</div></div>
+  <div class="stack-card"><div class="label">Image Cache</div><div class="value">Coil 2.6</div></div>
+  <div class="stack-card"><div class="label">Min SDK</div><div class="value">API 26 (Android 8)</div></div>
+  <div class="stack-card"><div class="label">Target SDK</div><div class="value">API 34 (Android 14)</div></div>
+</div>
+
+</div><!-- /page-body -->
+
+<!-- ══════════════════════ FOOTER ══════════════════════ -->
+<footer class="page-footer">
+  <strong>PDFX</strong> — The cleanest PDF reading experience on Android.
+  &nbsp;·&nbsp; No ads &nbsp;·&nbsp; No account &nbsp;·&nbsp; No cloud &nbsp;·&nbsp; Everything on your device.
+</footer>
+
+<script>
+// ── Navigation between phone frames ──────────────────────────────────────────
+// Maps route keys to their phone element IDs
+const PHONE_MAP = {
+  'empty':         'phone-empty',
+  'home-light':    'phone-home-light',
+  'home-dark':     'phone-home-dark',
+  'reader-light':  'phone-reader-light',
+  'reader-dark':   'phone-reader-dark',
+  'reader-sepia':  'phone-reader-sepia',
+  'reader-temp':   'phone-reader-temp',
+  'settings-light':'phone-settings-light',
+  'settings-dark': 'phone-settings-dark',
+};
+
+function navigate(key) {
+  const targetId = PHONE_MAP[key];
+  if (!targetId) return;
+  const el = document.getElementById(targetId);
+  if (!el) return;
+  closeAllMenus();
+  // Scroll the target phone wrap into view smoothly
+  el.closest('.phone-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // Flash highlight ring
+  el.style.transition = 'box-shadow .15s';
+  el.style.boxShadow = '0 0 0 4px #2563EB, 0 24px 60px rgba(0,0,0,.35)';
+  setTimeout(() => {
+    el.style.boxShadow = '0 0 0 8px var(--n900), 0 24px 60px rgba(0,0,0,.35)';
+  }, 600);
+}
+
+// ── Context menu ──────────────────────────────────────────────────────────────
+function showMenu(event, menuId) {
+  event.stopPropagation();
+  closeAllMenus();
+  const menu = document.getElementById(menuId);
+  if (menu) menu.style.display = 'block';
+}
+
+function closeMenus() {
+  // Bug #11 fix: separated menu-close from dialog-close so that closing a
+  // context menu (e.g. via outside click or navigate()) never inadvertently
+  // hides the rename dialog, which is a different UI concern entirely.
+  document.querySelectorAll('.ctx-menu').forEach(m => m.style.display = 'none');
+}
+
+function closeDialog() {
+  const d = document.getElementById('rename-dialog');
+  if (d) d.style.display = 'none';
+}
+
+function closeAllMenus() {
+  // Kept for backward-compat with existing onclick= attributes in the HTML.
+  // Only called from places that legitimately want BOTH closed (e.g. showRename).
+  closeMenus();
+  closeDialog();
+}
+
+// Close menus on outside click — Bug #11 fix: use closeMenus() not closeAllMenus()
+// so clicking anywhere on the page never accidentally hides the rename dialog.
+document.addEventListener('click', () => {
+  closeMenus();
+});
+
+// ── Rename dialog ─────────────────────────────────────────────────────────────
+let _renameTargetTitle = null;
+
+function showRename(event) {
+  event.stopPropagation();
+  closeAllMenus();
+  // Find nearest card title
+  const card = event.target.closest('.pdf-card') ||
+               event.target.closest('.card-meta')?.closest('.pdf-card');
+  const title = card?.querySelector('.card-title')?.textContent || 'Document';
+  _renameTargetTitle = card?.querySelector('.card-title');
+
+  const input = document.getElementById('rename-input');
+  if (input) input.value = title;
+
+  const dialog = document.getElementById('rename-dialog');
+  if (dialog) {
+    dialog.style.display = 'flex';
+    setTimeout(() => input?.select(), 80);
+  }
+}
+
+function closeRename() {
+  const dialog = document.getElementById('rename-dialog');
+  const input  = document.getElementById('rename-input');
+  if (dialog)  dialog.style.display = 'none';
+  if (_renameTargetTitle && input && input.value.trim()) {
+    _renameTargetTitle.textContent = input.value.trim();
+  }
+  _renameTargetTitle = null;
+}
+
+// ── Reader bar auto-hide simulation ──────────────────────────────────────────
+// Tapping the reader screen toggles the top bar visibility
+document.querySelectorAll('[id^="phone-reader"]').forEach(phone => {
+  phone.addEventListener('click', function(e) {
+    if (e.target.closest('.reader-bar')) return; // ignore taps on the bar itself
+    const bars = this.querySelectorAll('.reader-bar');
+    bars.forEach(bar => {
+      const isHidden = bar.style.opacity === '0';
+      bar.style.transition = 'opacity .25s';
+      bar.style.opacity = isHidden ? '1' : '0';
+      bar.style.pointerEvents = isHidden ? 'auto' : 'none';
+      // Auto-restore after 3 s
+      if (!isHidden) {
+        clearTimeout(bar._restoreTimer);
+        bar._restoreTimer = setTimeout(() => {
+          bar.style.opacity = '1';
+          bar.style.pointerEvents = 'auto';
+        }, 3000);
+      }
+    });
+  });
+});
+
+// ── Toggle switches ───────────────────────────────────────────────────────────
+// Bug #10 fix: previously each toggle had BOTH an inline onclick attribute in
+// the HTML AND a JS addEventListener here, plus the row-level click handler.
+// Clicking the toggle fired: (1) toggle's own listener → toggle ON, then
+// (2) row's listener → toggle OFF again, making it appear to do nothing.
+//
+// Fix: a single delegated listener on each row is the only toggle handler.
+// The inline onclick attributes have been removed from the toggle elements.
+// e.stopPropagation() on the toggle prevents the row listener from double-firing.
+document.querySelectorAll('.settings-row').forEach(row => {
+  const toggle = row.querySelector('.toggle');
+  if (!toggle) return;
+
+  // Remove any inline onclick that may have been left in the HTML
+  toggle.removeAttribute('onclick');
+
+  // Single listener on the toggle — stop propagation so row listener doesn't fire
+  toggle.addEventListener('click', function(e) {
+    e.stopPropagation();
+    this.classList.toggle('on');
+  });
+
+  // Row click toggles the switch when user clicks the label area (not the toggle)
+  row.addEventListener('click', function(e) {
+    // If the click was on the toggle itself, its own listener already handled it
+    if (e.target === toggle || toggle.contains(e.target)) return;
+    toggle.classList.toggle('on');
+  });
+});
+
+// ── Keyboard support ──────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeMenus();   // Esc closes menus but NOT the rename dialog (user typed in it)
+    closeDialog();  // also close dialog — standard UX for Esc
+  }
+  if (e.key === 'Enter') {
+    const dialog = document.getElementById('rename-dialog');
+    if (dialog && dialog.style.display !== 'none') closeRename();
+  }
+});
+</script>
+
+</body>
+</html>
