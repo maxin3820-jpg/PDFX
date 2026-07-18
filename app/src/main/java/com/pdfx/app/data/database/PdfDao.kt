@@ -22,10 +22,10 @@ interface PdfDao {
     @Query("SELECT * FROM pdf_documents ORDER BY imported_at ASC")
     fun getAllByOldest(): Flow<List<PdfEntity>>
 
-    @Query("SELECT * FROM pdf_documents ORDER BY display_name ASC COLLATE NOCASE")
+    @Query("SELECT * FROM pdf_documents ORDER BY display_name COLLATE NOCASE ASC")
     fun getAllByNameAsc(): Flow<List<PdfEntity>>
 
-    @Query("SELECT * FROM pdf_documents ORDER BY display_name DESC COLLATE NOCASE")
+    @Query("SELECT * FROM pdf_documents ORDER BY display_name COLLATE NOCASE DESC")
     fun getAllByNameDesc(): Flow<List<PdfEntity>>
 
     @Query("SELECT * FROM pdf_documents ORDER BY file_size DESC")
