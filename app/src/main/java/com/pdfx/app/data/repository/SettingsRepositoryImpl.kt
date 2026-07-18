@@ -68,39 +68,51 @@ class SettingsRepositoryImpl @Inject constructor(
         )
     }
 
-    override suspend fun setAppTheme(theme: AppTheme) =
+    override suspend fun setAppTheme(theme: AppTheme) {
         dataStore.edit { it[Keys.APP_THEME] = theme.value }
+    }
 
-    override suspend fun setAccentColor(color: AccentColor) =
+    override suspend fun setAccentColor(color: AccentColor) {
         dataStore.edit { it[Keys.ACCENT_COLOR] = color.value }
+    }
 
-    override suspend fun setReaderTheme(theme: ReaderTheme) =
+    override suspend fun setReaderTheme(theme: ReaderTheme) {
         dataStore.edit { it[Keys.READER_THEME] = theme.value }
+    }
 
-    override suspend fun setReaderBackground(bg: ReaderBackground) =
+    override suspend fun setReaderBackground(bg: ReaderBackground) {
         dataStore.edit { it[Keys.READER_BACKGROUND] = bg.value }
+    }
 
-    override suspend fun setCardStyle(style: CardStyle) =
+    override suspend fun setCardStyle(style: CardStyle) {
         dataStore.edit { it[Keys.CARD_STYLE] = style.value }
+    }
 
-    override suspend fun setRememberReadingPosition(enabled: Boolean) =
+    override suspend fun setRememberReadingPosition(enabled: Boolean) {
         dataStore.edit { it[Keys.REMEMBER_READING_POSITION] = enabled }
+    }
 
-    override suspend fun setDefaultZoom(zoom: DefaultZoom) =
+    override suspend fun setDefaultZoom(zoom: DefaultZoom) {
         dataStore.edit { it[Keys.DEFAULT_ZOOM] = zoom.value }
+    }
 
-    override suspend fun setGridLayout(layout: GridLayout) =
+    override suspend fun setGridLayout(layout: GridLayout) {
         dataStore.edit { it[Keys.GRID_LAYOUT] = layout.value }
+    }
 
-    override suspend fun setSortOrder(order: SortOrder) =
+    override suspend fun setSortOrder(order: SortOrder) {
         dataStore.edit { it[Keys.SORT_ORDER] = order.value }
+    }
 
-    override suspend fun setKeepScreenOn(enabled: Boolean) =
+    override suspend fun setKeepScreenOn(enabled: Boolean) {
         dataStore.edit { it[Keys.KEEP_SCREEN_ON] = enabled }
+    }
 
-    override suspend fun setEnableAnimations(enabled: Boolean) =
+    override suspend fun setEnableAnimations(enabled: Boolean) {
         dataStore.edit { it[Keys.ENABLE_ANIMATIONS] = enabled }
+    }
 
-    override suspend fun setShowPageNumber(enabled: Boolean) =
+    override suspend fun setShowPageNumber(enabled: Boolean) {
         dataStore.edit { it[Keys.SHOW_PAGE_NUMBER] = enabled }
+    }
 }
