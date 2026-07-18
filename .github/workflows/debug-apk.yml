@@ -63,9 +63,24 @@ jobs:
       
       - name: Build Debug APK
         run: |
-          echo "🔨 Building Debug APK..."
-          ./gradlew assembleDebug --stacktrace --info --no-daemon --warning-mode=all
-          echo "✅ Debug APK built successfully"
+          echo "🔨 Building Debug APK with retry logic..."
+          
+          for attempt in {1..3}; do
+            echo "Attempt $attempt of 3..."
+            
+            if ./gradlew assembleDebug --stacktrace --info --no-daemon --warning-mode=all; then
+              echo "✅ Debug APK built successfully"
+              exit 0
+            fi
+            
+            if [ $attempt -lt 3 ]; then
+              echo "⚠️ Build attempt $attempt failed, retrying in 15 seconds..."
+              sleep 15
+            else
+              echo "❌ All build attempts failed"
+              exit 1
+            fi
+          done
       
       - name: Get APK info
         id: apk
