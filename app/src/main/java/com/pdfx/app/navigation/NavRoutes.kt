@@ -21,10 +21,14 @@ sealed class NavRoutes(val route: String) {
     /**
      * PDF reader — opened from an external intent (temporary).
      * The URI is passed as an encoded query parameter.
+     * BUG #NEW-06 FIX: URI must be double-encoded to survive NavController
+     * route parsing. Single-encoded URIs with '/' or '?' break route matching.
      */
     data object ReaderTemp : NavRoutes("reader_temp?uri={uri}") {
         const val ARG_URI = "uri"
-        fun createRoute(encodedUri: String) = "reader_temp?uri=$encodedUri"
+        fun createRoute(encodedUri: String) = "reader_temp?uri=${
+            android.net.Uri.encode(encodedUri)
+        }"
     }
 
     /** App settings */

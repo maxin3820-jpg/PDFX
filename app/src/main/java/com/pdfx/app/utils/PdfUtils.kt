@@ -56,7 +56,9 @@ object PdfUtils {
                     renderer.openPage(0).use { page ->
                         val aspectRatio = page.height.toFloat() / page.width.toFloat()
                         val bitmapWidth = targetWidth
-                        val bitmapHeight = (targetWidth * aspectRatio).toInt()
+                        // BUG #NEW-05 FIX: bitmapHeight could be 0 for malformed PDFs
+                        // causing Bitmap.createBitmap() to throw IllegalArgumentException
+                        val bitmapHeight = (targetWidth * aspectRatio).toInt().coerceAtLeast(1)
 
                         // Use RGB_565 for 50% memory savings (thumbnails don't need alpha)
                         val bitmap = Bitmap.createBitmap(

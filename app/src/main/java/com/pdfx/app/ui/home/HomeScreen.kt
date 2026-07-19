@@ -3,9 +3,6 @@ package com.pdfx.app.ui.home
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -111,21 +108,18 @@ fun HomeScreen(
             )
         },
         floatingActionButton = {
-            AnimatedVisibility(
-                visible = documents.isNotEmpty(),
-                enter = fadeIn(),
-                exit = fadeOut(),
+            // BUG #NEW-04 FIX: FAB was hidden when library empty using AnimatedVisibility.
+            // User could only import via EmptyLibrary CTA. FAB should ALWAYS be visible
+            // so user can import more PDFs from any state.
+            FloatingActionButton(
+                onClick = ::launchPicker,
+                containerColor = MaterialTheme.colorScheme.primary,
             ) {
-                FloatingActionButton(
-                    onClick = ::launchPicker,
-                    containerColor = MaterialTheme.colorScheme.primary,
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Add,
-                        contentDescription = "Import PDF",
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Outlined.Add,
+                    contentDescription = "Import PDF",
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                )
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },

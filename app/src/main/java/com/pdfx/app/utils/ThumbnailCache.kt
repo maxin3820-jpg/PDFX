@@ -85,8 +85,23 @@ class ThumbnailCache @Inject constructor() {
         memCache.put(documentId, bitmap)
         withContext(Dispatchers.IO) {
             try {
+                // BUG #NEW-07 FIX: Check total cache dir size before writing.
+                // Prevent filling device storage with thumbnails.
+                val dir = thumbnailDir(context)
+                val totalSizeKb = dir.walkTopDown()
+                    .filter { it.isFile }
+                    .sumOf { it.length() } / 1024
+
+                // If cache dir > 50 MB, evict oldest files first
+                if (totalSizeKb > 50 * 1024) {
+                    dir.listFiles()
+                        ?.sortedBy { it.lastModified() }
+                        ?.take(10) // remove 10 oldest
+                        ?.forEach { it.delete() }
+                    Log.w(TAG, "Thumbnail cache exceeded 50MB, evicted oldest entries")
+                }
+
                 FileOutputStream(cacheFile(context, documentId)).use { out ->
-                    // Reduce quality to 80 for smaller file sizes and faster loading
                     bitmap.compress(Bitmap.CompressFormat.JPEG, 80, out)
                 }
             } catch (e: Exception) {

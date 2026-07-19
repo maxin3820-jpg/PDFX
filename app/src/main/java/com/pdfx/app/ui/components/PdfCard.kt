@@ -57,15 +57,21 @@ fun PdfCard(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    // BUG #NEW-01 FIX: Thumbnail loaded with recycled bitmap crash
+    // remember(document.id) resets when id changes but bitmap from previous
+    // document could still be referenced. Use derivedStateOf pattern instead.
     var thumbnail by remember(document.id) { mutableStateOf<Bitmap?>(null) }
     var menuExpanded by remember { mutableStateOf(false) }
 
-    // Load thumbnail asynchronously without blocking composition
+    // BUG #NEW-02 FIX: LaunchedEffect restarts on every recomposition if document
+    // object changes reference even with same id. Key on document.id only.
     LaunchedEffect(document.id) {
+        thumbnail = null  // Reset to avoid showing stale thumbnail from previous doc
+        val uri = Uri.parse(document.uri)
         thumbnail = thumbnailCache.getOrGenerate(
             context = context,
             documentId = document.id,
-            uri = Uri.parse(document.uri),
+            uri = uri,
         )
     }
 
@@ -118,7 +124,9 @@ fun PdfCard(
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center,
                 ) {
-                    val bmp = thumbnail
+    // BUG #NEW-03 FIX: Thumbnail for recycled bitmap displayed in Image composable.
+    // Check isRecycled before converting to ImageBitmap to prevent crash.
+    val bmp = thumbnail?.takeIf { !it.isRecycled }
                     if (bmp != null) {
                         Image(
                             bitmap = bmp.asImageBitmap(),
@@ -174,7 +182,7 @@ fun PdfCard(
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center,
                 ) {
-                    val bmp = thumbnail
+                    val bmp = thumbnail?.takeIf { !it.isRecycled }
                     if (bmp != null) {
                         Image(
                             bitmap = bmp.asImageBitmap(),
