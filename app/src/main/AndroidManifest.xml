@@ -3,10 +3,37 @@
 
     <!-- No INTERNET permission — privacy first -->
 
-    <!-- Storage permission for Android 8-12 -->
+    <!-- Storage permissions for different Android versions -->
+    <!-- Android 8-12: READ_EXTERNAL_STORAGE -->
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
+    
+    <!-- Android 13+: READ_MEDIA_IMAGES for thumbnails -->
+    <uses-permission 
+        android:name="android.permission.READ_MEDIA_IMAGES" />
+    
+    <!-- Android 13+: Granular media permissions -->
+    <uses-permission 
+        android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+    
+    <!-- POST_NOTIFICATIONS for Android 13+ (optional, for future features) -->
+    <uses-permission 
+        android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Queries for Android 11+ (Package Visibility) -->
+    <queries>
+        <!-- Query for PDF file type -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="application/pdf" />
+        </intent>
+        <!-- Query for file providers -->
+        <intent>
+            <action android:name="android.intent.action.GET_CONTENT" />
+            <data android:mimeType="application/pdf" />
+        </intent>
+    </queries>
 
     <application
         android:name=".PdfxApplication"
@@ -19,7 +46,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.PDFX"
         android:largeHeap="false"
-        android:hardwareAccelerated="true">
+        android:hardwareAccelerated="true"
+        android:enableOnBackInvokedCallback="true">
 
         <!-- Main launcher activity -->
         <activity
