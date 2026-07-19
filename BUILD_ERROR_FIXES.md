@@ -173,6 +173,59 @@ Added 3-attempt retry logic with 15-second delays to all workflows:
 
 ---
 
+### ✅ Error 7: Kotlin Return Type Mismatch in SettingsRepositoryImpl
+**Commit:** `fbc7513`
+
+**Error:**
+```
+Return type of 'setAppTheme' is not a subtype of the return type of the overridden member
+'public abstract suspend fun setAppTheme(theme: AppTheme): Unit'
+```
+
+**Cause:**
+- All setter methods used expression bodies: `override suspend fun setAppTheme(...) = dataStore.edit { ... }`
+- `dataStore.edit()` returns `Preferences`, not `Unit`
+- Expression body inferred return type as `Preferences`
+- Interface expects `Unit` return type (implicit in Kotlin)
+
+**Fix:**
+Changed all 12 setter methods from expression bodies to block bodies:
+```kotlin
+// ❌ Wrong (before - expression body):
+override suspend fun setAppTheme(theme: AppTheme) =
+    dataStore.edit { it[Keys.APP_THEME] = theme.value }
+// Return type inferred as Preferences ❌
+
+// ✅ Correct (after - block body):
+override suspend fun setAppTheme(theme: AppTheme) {
+    dataStore.edit { it[Keys.APP_THEME] = theme.value }
+}
+// Return type is Unit ✅
+```
+
+**Affected Methods (all fixed):**
+- `setAppTheme`
+- `setAccentColor`
+- `setReaderTheme`
+- `setReaderBackground`
+- `setCardStyle`
+- `setRememberReadingPosition`
+- `setDefaultZoom`
+- `setGridLayout`
+- `setSortOrder`
+- `setKeepScreenOn`
+- `setEnableAnimations`
+- `setShowPageNumber`
+
+**Why This Works:**
+- Block-bodied functions without explicit `return` have implicit `Unit` return type
+- Matches the `SettingsRepository` interface signatures perfectly
+- DataStore edit operation still executes, but result is discarded
+
+**Result:** ✅ Kotlin compilation succeeds - return types match interface
+
+---
+
 ## Complete Fix Summary
 
 | # | Error | File | Fix | Status |
@@ -183,6 +236,7 @@ Added 3-attempt retry logic with 15-second delays to all workflows:
 | 4 | Config cache | `gradle.properties` | Disabled for CI | ✅ Fixed |
 | 5 | SQL syntax | `PdfDao.kt` | Reordered COLLATE | ✅ Fixed |
 | 6 | Network connection reset | Workflows | Added retry logic | ✅ Fixed |
+| 7 | Return type mismatch | `SettingsRepositoryImpl.kt` | Block bodies for Unit | ✅ Fixed |
 
 ---
 
@@ -433,9 +487,9 @@ Build is successful when:
 
 ## Summary
 
-**Total Errors Fixed:** 6 critical issues  
-**Commits:** 8 (including initial + fixes)  
-**Files Modified:** 12  
+**Total Errors Fixed:** 7 critical issues  
+**Commits:** 9 (including initial + fixes)  
+**Files Modified:** 13  
 **Diagnostics:** Zero errors in all 40 source files  
 
 **Status:** ✅ Production Ready with Network Resilience
