@@ -16,9 +16,13 @@ import com.pdfx.app.domain.model.ReaderTheme
 import com.pdfx.app.domain.model.SortOrder
 import com.pdfx.app.domain.repository.SettingsRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import android.util.Log
 import javax.inject.Inject
 import javax.inject.Singleton
+
+private const val TAG = "SettingsRepo"
 
 @Singleton
 class SettingsRepositoryImpl @Inject constructor(
@@ -42,7 +46,15 @@ class SettingsRepositoryImpl @Inject constructor(
 
     private val defaults = AppSettings()
 
-    override val settings: Flow<AppSettings> = dataStore.data.map { p ->
+    override val settings: Flow<AppSettings> = dataStore.data
+        // BUG #S-01 FIX: DataStore can throw IOException on corrupted preferences file.
+        // Without this catch, the entire app crashes on launch with no recovery.
+        // Fallback to defaults and log the error.
+        .catch { e ->
+            Log.e(TAG, "DataStore read error — returning defaults", e)
+            emit(androidx.datastore.preferences.core.emptyPreferences())
+        }
+        .map { p ->
         AppSettings(
             appTheme = AppTheme.entries.firstOrNull {
                 it.value == p[Keys.APP_THEME] } ?: defaults.appTheme,

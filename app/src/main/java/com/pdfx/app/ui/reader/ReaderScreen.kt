@@ -255,7 +255,6 @@ private fun PdfPageList(
                     detectTapGestures(
                         onTap = { viewModel.onTap() },
                         onDoubleTap = {
-                            // Toggle between fit (1×) and comfortable reading zoom (2.5×)
                             scale = if (scale > 1.2f) 1f else 2.5f
                             viewModel.onZoomChanged(scale)
                         }
@@ -267,9 +266,12 @@ private fun PdfPageList(
                 state = listState,
                 modifier = Modifier
                     .fillMaxSize()
+                    // BUG #R-01 FIX: graphicsLayer must use transformOrigin = center
+                    // otherwise zoom anchors to top-left corner, not screen center
                     .graphicsLayer {
                         scaleX = scale
                         scaleY = scale
+                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0.5f)
                     },
             ) {
                 items(uiState.pageCount) { pageIndex ->
@@ -333,7 +335,7 @@ private fun PdfPageItem(
             .padding(bottom = 1.dp),        // minimal separator between pages
         contentAlignment = Alignment.TopCenter,
     ) {
-        val bmp = bitmap
+        val bmp = bitmap?.takeIf { !it.isRecycled }
         if (bmp != null) {
             Image(
                 bitmap = bmp.asImageBitmap(),

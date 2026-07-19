@@ -53,7 +53,11 @@ fun RenameDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(textValue.text) },
+                // BUG #RD-01 FIX: trim whitespace and check blank after trim
+                onClick = {
+                    val trimmed = textValue.text.trim()
+                    if (trimmed.isNotBlank()) onConfirm(trimmed)
+                },
                 enabled = textValue.text.isNotBlank(),
             ) {
                 Text("Rename")

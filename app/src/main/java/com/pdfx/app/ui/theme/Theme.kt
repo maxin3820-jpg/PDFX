@@ -27,10 +27,13 @@ fun PdfxTheme(
 
     val context = LocalContext.current
 
-    // On Android 12+ use dynamic colour (ignores custom accent — system handles it).
-    // On older versions build a scheme from the chosen AccentPalette.
+    // BUG #T-01 FIX: Dynamic colour on Android 12+ was always used regardless
+    // of the user's chosen accent color, making the accent setting useless on
+    // Android 12+ devices. Now only use dynamic color when accentColor is BLUE
+    // (default), otherwise respect user's explicit choice on all Android versions.
     val colorScheme = when {
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+        accentColor == AccentColor.BLUE ->
             if (isDark) dynamicDarkColorScheme(context)
             else dynamicLightColorScheme(context)
 
