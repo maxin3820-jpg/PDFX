@@ -107,17 +107,6 @@ class ReaderViewModel @Inject constructor(
             try {
                 closeRenderer()
                 
-                // Take persistable URI permission for Android 13+
-                try {
-                    context.contentResolver.takePersistableUriPermission(
-                        uri,
-                        android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    )
-                } catch (e: SecurityException) {
-                    // Permission might already be granted or not needed
-                    Log.d(TAG, "Could not take persistable permission: ${e.message}")
-                }
-                
                 val pfd = context.contentResolver.openFileDescriptor(uri, "r") ?: run {
                     _uiState.update { it.copy(isLoading = false, error = "Cannot open file - permission denied") }
                     return@withContext
@@ -150,7 +139,7 @@ class ReaderViewModel @Inject constructor(
                 Log.e(TAG, "Failed to open PDF", e)
                 _uiState.update { it.copy(
                     isLoading = false, 
-                    error = "Failed to open PDF: ${e.localizedMessage}\n\nPlease grant file permissions in Settings."
+                    error = "Failed to open PDF: ${e.message ?: "Unknown error"}"
                 ) }
             }
         }
