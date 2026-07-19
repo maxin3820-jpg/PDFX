@@ -62,22 +62,28 @@ jobs:
           for attempt in {1..3}; do
             echo "Attempt $attempt of 3..."
             
-            if ./gradlew assembleDebug --stacktrace --info --no-daemon --warning-mode=all 2>&1 | tee build.log; then
+            # Capture both stdout and stderr
+            if ./gradlew assembleDebug --stacktrace --info --no-daemon --warning-mode=all > build.log 2>&1; then
               echo "✅ Debug APK built successfully"
               exit 0
             fi
             
             echo "❌ Build failed on attempt $attempt"
-            echo "Last 50 lines of build output:"
-            tail -50 build.log
+            echo ""
+            echo "========== BUILD ERROR OUTPUT =========="
+            cat build.log | grep -A 20 "FAILURE:\|error:\|Error:\|Exception:" || cat build.log | tail -100
+            echo "========================================"
+            echo ""
             
             if [ $attempt -lt 3 ]; then
               echo "⚠️ Build attempt $attempt failed, retrying in 15 seconds..."
               sleep 15
             else
               echo "❌ All build attempts failed"
-              echo "Full build log:"
+              echo ""
+              echo "========== FULL BUILD LOG =========="
               cat build.log
+              echo "===================================="
               exit 1
             fi
           done
