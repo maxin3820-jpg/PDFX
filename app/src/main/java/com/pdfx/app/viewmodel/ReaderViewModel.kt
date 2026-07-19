@@ -22,11 +22,14 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 private const val TAG = "ReaderViewModel"
 private const val TOP_BAR_HIDE_DELAY_MS = 3_000L
 private const val READING_POSITION_SAVE_DEBOUNCE_MS = 500L
+private const val PAGE_RENDER_TIMEOUT_MS = 30_000L  // BUG #14: 30s timeout
+private const val MAX_PAGE_CACHE_SIZE = 5            // BUG #11: limit cache size
 
 @HiltViewModel
 class ReaderViewModel @Inject constructor(
@@ -38,7 +41,6 @@ class ReaderViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ReaderUiState())
     val uiState: StateFlow<ReaderUiState> = _uiState.asStateFlow()
 
-    /** PdfRenderer instance — opened once per document, closed on clear. */
     private var pdfRenderer: PdfRenderer? = null
     private var fileDescriptor: android.os.ParcelFileDescriptor? = null
 
@@ -47,10 +49,6 @@ class ReaderViewModel @Inject constructor(
 
     // ── Initialisation ────────────────────────────────────────────────────────
 
-    /**
-     * Opens a PDF from the library by its database ID.
-     * Restores reading position if the user has that setting enabled.
-     */
     fun openFromLibrary(documentId: Long) {
         viewModelScope.launch {
             val doc = pdfRepository.getDocumentById(documentId) ?: run {
@@ -75,14 +73,13 @@ class ReaderViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Opens a temporary PDF from an external intent (not added to library).
-     */
     fun openTemporary(uri: Uri) {
         viewModelScope.launch {
             openUri(
                 uri = uri,
-                title = uri.lastPathSegment?.removeSuffix(".pdf") ?: "PDF",
+                title = uri.lastPathSegment
+                    ?.removeSuffix(".pdf")
+                    ?.removePrefix("/") ?: "PDF",
                 documentId = null,
                 startPage = 0,
                 startZoom = 1f,
@@ -106,15 +103,76 @@ class ReaderViewModel @Inject constructor(
         withContext(Dispatchers.IO) {
             try {
                 closeRenderer()
-                
-                val pfd = context.contentResolver.openFileDescriptor(uri, "r") ?: run {
-                    _uiState.update { it.copy(isLoading = false, error = "Cannot open file - permission denied") }
+
+                // BUG #10 FIX: Verify URI is accessible before opening
+                val canAccess = try {
+                    context.contentResolver.query(
+                        uri, arrayOf("_id"), null, null, null
+                    )?.use { it.count >= 0 } ?: false
+                } catch (e: Exception) {
+                    Log.w(TAG, "Cannot query URI, trying direct open: ${e.message}")
+                    true // still try to open — some URIs don't support query
+                }
+
+                if (!canAccess) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "Cannot access file.\n\nGo to Settings → Apps → PDFX → Permissions and grant Files & Media access, then try again."
+                        )
+                    }
                     return@withContext
                 }
+
+                val pfd = try {
+                    context.contentResolver.openFileDescriptor(uri, "r")
+                } catch (e: SecurityException) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "Permission denied.\n\nGo to Settings → Apps → PDFX → Permissions and grant Files & Media access."
+                        )
+                    }
+                    return@withContext
+                }
+
+                if (pfd == null) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "Cannot open file.\n\nThe file may have been moved or deleted."
+                        )
+                    }
+                    return@withContext
+                }
+
                 fileDescriptor = pfd
-                val renderer = PdfRenderer(pfd)
+
+                // BUG #12 FIX: Separate IOException for corrupted PDFs
+                val renderer = try {
+                    PdfRenderer(pfd)
+                } catch (e: java.io.IOException) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "This file is not a valid PDF or is corrupted.\n\n${e.message}"
+                        )
+                    }
+                    return@withContext
+                }
+
                 pdfRenderer = renderer
                 val pageCount = renderer.pageCount
+
+                if (pageCount == 0) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "This PDF has no pages."
+                        )
+                    }
+                    return@withContext
+                }
 
                 _uiState.update {
                     it.copy(
@@ -123,7 +181,7 @@ class ReaderViewModel @Inject constructor(
                         documentId = documentId,
                         uri = uri,
                         pageCount = pageCount,
-                        currentPage = startPage.coerceIn(0, (pageCount - 1).coerceAtLeast(0)),
+                        currentPage = startPage.coerceIn(0, pageCount - 1),
                         zoom = startZoom,
                         readerTheme = readerTheme,
                         showPageNumber = showPageNumber,
@@ -135,73 +193,105 @@ class ReaderViewModel @Inject constructor(
                 }
 
                 scheduleTopBarHide()
+
+            } catch (e: java.io.IOException) {
+                Log.e(TAG, "IO error opening PDF", e)
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = "File is corrupted or not a valid PDF.\n${e.message}"
+                    )
+                }
+            } catch (e: SecurityException) {
+                Log.e(TAG, "Security error opening PDF", e)
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = "Permission denied. Please grant file access in Settings."
+                    )
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to open PDF", e)
-                _uiState.update { it.copy(
-                    isLoading = false, 
-                    error = "Failed to open PDF: ${e.message ?: "Unknown error"}"
-                ) }
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = "Failed to open PDF: ${e.message ?: "Unknown error"}"
+                    )
+                }
             }
         }
     }
 
     // ── Page rendering ────────────────────────────────────────────────────────
 
-    // ── Page rendering with caching ───────────────────────────────────────────
-
-    /** Cache for rendered pages — keyed by pageIndex. Cleared on document switch. */
+    // BUG #11 FIX: LRU-style bounded cache to prevent memory leaks
+    private val pageCacheKeys = ArrayDeque<Int>()
     private val pageCache = mutableMapOf<Int, Bitmap>()
     private var cachedTargetWidth: Int = 0
 
-    /**
-     * Renders a single PDF page to a [Bitmap] at the specified width.
-     * This is called per-page by the lazy column in the reader.
-     * 
-     * PERFORMANCE OPTIMIZATIONS:
-     * 1. Page cache — rendered bitmaps are cached to avoid redundant rendering
-     * 2. RGB_565 config — uses 50% less memory than ARGB_8888 for PDFs without transparency
-     * 3. RENDER_MODE_FOR_DISPLAY — optimized for screen display (vs print quality)
-     */
     suspend fun renderPage(pageIndex: Int, targetWidth: Int): Bitmap? =
         withContext(Dispatchers.IO) {
             val renderer = pdfRenderer ?: return@withContext null
             if (pageIndex < 0 || pageIndex >= renderer.pageCount) return@withContext null
 
-            // Clear cache if target width changed (orientation rotation)
             if (cachedTargetWidth != targetWidth && cachedTargetWidth != 0) {
                 clearPageCache()
             }
             cachedTargetWidth = targetWidth
 
-            // Return cached bitmap if available
             pageCache[pageIndex]?.let { return@withContext it }
 
-            try {
-                renderer.openPage(pageIndex).use { page ->
-                    val aspectRatio = page.height.toFloat() / page.width.toFloat()
-                    val bitmapWidth = targetWidth
-                    val bitmapHeight = (targetWidth * aspectRatio).toInt()
+            // BUG #14 FIX: Timeout to prevent infinite hang on bad PDFs
+            withTimeoutOrNull(PAGE_RENDER_TIMEOUT_MS) {
+                try {
+                    renderer.openPage(pageIndex).use { page ->
+                        val aspectRatio = page.height.toFloat() / page.width.toFloat()
+                        val bitmapHeight = (targetWidth * aspectRatio).toInt().coerceAtLeast(1)
 
-                    // Use RGB_565 for 50% memory savings (sufficient for most PDFs)
-                    val bitmap = Bitmap.createBitmap(
-                        bitmapWidth, bitmapHeight, Bitmap.Config.RGB_565
-                    )
-                    bitmap.eraseColor(android.graphics.Color.WHITE)
-                    page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                    
-                    // Cache the rendered page
-                    pageCache[pageIndex] = bitmap
-                    bitmap
+                        val bitmap = Bitmap.createBitmap(
+                            targetWidth, bitmapHeight, Bitmap.Config.RGB_565
+                        )
+                        bitmap.eraseColor(android.graphics.Color.WHITE)
+                        page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+
+                        // BUG #11 FIX: Evict oldest entry when cache is full
+                        if (pageCache.size >= MAX_PAGE_CACHE_SIZE) {
+                            val oldest = pageCacheKeys.removeFirstOrNull()
+                            if (oldest != null) {
+                                pageCache.remove(oldest)?.recycle()
+                            }
+                        }
+                        pageCache[pageIndex] = bitmap
+                        pageCacheKeys.remove(pageIndex)
+                        pageCacheKeys.addLast(pageIndex)
+
+                        bitmap
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to render page $pageIndex", e)
+                    null
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to render page $pageIndex", e)
-                null
             }
         }
 
+    // BUG #11 FIX: Properly recycle all bitmaps on clear
     private fun clearPageCache() {
-        pageCache.values.forEach { it.recycle() }
+        pageCache.values.forEach { bmp ->
+            if (!bmp.isRecycled) bmp.recycle()
+        }
         pageCache.clear()
+        pageCacheKeys.clear()
+    }
+
+    // BUG #11 FIX: Clear cache on low memory
+    fun onLowMemory() {
+        val current = _uiState.value.currentPage
+        val keysToRemove = pageCache.keys.filter { it != current }
+        keysToRemove.forEach { key ->
+            pageCache.remove(key)?.let { if (!it.isRecycled) it.recycle() }
+            pageCacheKeys.remove(key)
+        }
+        Log.w(TAG, "Low memory — cleared ${keysToRemove.size} cached pages")
     }
 
     // ── Reading position ──────────────────────────────────────────────────────
@@ -255,20 +345,10 @@ class ReaderViewModel @Inject constructor(
         }
     }
 
-    // ── Add to library (temporary opens) ─────────────────────────────────────
+    // ── Add to library ────────────────────────────────────────────────────────
 
-    /**
-     * Signals that the user wants to add the currently-open temporary PDF to
-     * the library. The actual insert is performed by HomeViewModel via the
-     * onAddToLibrary callback wired in PdfxNavGraph → MainActivity.
-     *
-     * Bug #3 fix: removed the dead `uri` local variable (was validated but
-     * never used inside the coroutine) and the misleading try/catch that wrapped
-     * code that could never throw. The flag is now set directly and synchronously;
-     * ReaderScreen's LaunchedEffect observes it and invokes the callback.
-     */
     fun addToLibrary() {
-        if (_uiState.value.uri == null) return   // nothing open — no-op
+        if (_uiState.value.uri == null) return
         _uiState.update { it.copy(addToLibraryRequested = true) }
     }
 
@@ -291,8 +371,11 @@ class ReaderViewModel @Inject constructor(
         }
     }
 
+    // BUG #11 FIX: Always clean up on ViewModel destruction
     override fun onCleared() {
         super.onCleared()
+        topBarJob?.cancel()
+        savePositionJob?.cancel()
         closeRenderer()
     }
 }

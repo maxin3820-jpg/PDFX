@@ -4,22 +4,16 @@
     <!-- No INTERNET permission — privacy first -->
 
     <!-- Storage permissions for different Android versions -->
-    <!-- Android 8-12: READ_EXTERNAL_STORAGE -->
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
-    
-    <!-- Android 13+: READ_MEDIA_IMAGES for thumbnails -->
-    <uses-permission 
-        android:name="android.permission.READ_MEDIA_IMAGES" />
-    
-    <!-- Android 13+: Granular media permissions -->
-    <uses-permission 
-        android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
-    
-    <!-- POST_NOTIFICATIONS for Android 13+ (optional, for future features) -->
-    <uses-permission 
-        android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- BUG #13 FIX: Xiaomi/HyperOS battery optimization bypass -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
     <!-- Queries for Android 11+ (Package Visibility) -->
     <queries>
