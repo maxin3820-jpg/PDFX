@@ -1,16 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- Base application theme — windowBackground set to avoid white flicker on cold start -->
+    <!-- Base application theme — instant launch, no splash screen -->
     <style name="Theme.PDFX" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@android:color/white</item>
-    </style>
-
-    <!-- Splash screen theme — used before Compose takes over -->
-    <style name="Theme.PDFX.Splash" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">#FFFFFF</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
-        <item name="postSplashScreenTheme">@style/Theme.PDFX</item>
     </style>
 
 </resources>

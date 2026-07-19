@@ -122,8 +122,5 @@ dependencies {
     // DataStore for settings
     implementation(libs.androidx.datastore.preferences)
 
-    // Splash Screen
-    implementation(libs.androidx.core.splashscreen)
-
     debugImplementation(libs.androidx.ui.tooling)
 }
