@@ -12,6 +12,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.rememberNavController
 import com.pdfx.app.domain.model.AppTheme
 import com.pdfx.app.navigation.NavRoutes
@@ -37,6 +38,11 @@ class MainActivity : ComponentActivity() {
     private val homeViewModel: HomeViewModel by viewModels()
     
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Install splash screen - configured for instant launch (no animation)
+        installSplashScreen().apply {
+            setKeepOnScreenCondition { false } // Dismiss immediately
+        }
+        
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 

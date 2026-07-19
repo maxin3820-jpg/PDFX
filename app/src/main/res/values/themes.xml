@@ -1,9 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- Base application theme — instant launch, no splash screen -->
+    <!-- Base application theme — instant launch -->
     <style name="Theme.PDFX" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@android:color/white</item>
+    </style>
+
+    <!-- Instant splash (no logo, no animation) -->
+    <style name="Theme.PDFX.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@android:color/white</item>
+        <item name="windowSplashScreenAnimationDuration">0</item>
+        <item name="postSplashScreenTheme">@style/Theme.PDFX</item>
     </style>
 
 </resources>

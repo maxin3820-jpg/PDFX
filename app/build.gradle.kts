@@ -122,5 +122,13 @@ dependencies {
     // DataStore for settings
     implementation(libs.androidx.datastore.preferences)
 
+    // Splash Screen - instant launch (no animation)
+    implementation(libs.androidx.core.splashscreen)
+
     debugImplementation(libs.androidx.ui.tooling)
+}
+
+// Required for Hilt to work properly
+kapt {
+    correctErrorTypes = true
 }
