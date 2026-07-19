@@ -81,7 +81,10 @@ class HomeViewModel @Inject constructor(
             uris.forEach { uri ->
                 try {
                     // Persist read permission immediately — must happen before any IO
-                    UriPermissionHelper.persist(context, uri)
+                    val permissionGranted = UriPermissionHelper.persist(context, uri)
+                    if (!permissionGranted) {
+                        Log.w(TAG, "Could not persist permission for $uri, but continuing anyway")
+                    }
 
                     val uriString = uri.toString()
                     val existing = pdfRepository.getDocumentByUri(uriString)
@@ -99,7 +102,7 @@ class HomeViewModel @Inject constructor(
                     doInsertPdf(uri)
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to import $uri", e)
-                    _uiState.update { it.copy(errorMessage = "Import failed: ${e.localizedMessage}") }
+                    _uiState.update { it.copy(errorMessage = "Import failed: ${e.message}") }
                 }
             }
         }

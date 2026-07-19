@@ -18,15 +18,22 @@ object UriPermissionHelper {
     /**
      * Persists read permission for [uri].
      * Call this immediately after the user selects a file via the picker.
+     * Returns true if successful, false otherwise.
      */
-    fun persist(context: Context, uri: Uri) {
-        try {
+    fun persist(context: Context, uri: Uri): Boolean {
+        return try {
             context.contentResolver.takePersistableUriPermission(
                 uri,
                 Intent.FLAG_GRANT_READ_URI_PERMISSION
             )
+            Log.d(TAG, "Successfully persisted URI permission for $uri")
+            true
         } catch (e: SecurityException) {
             Log.e(TAG, "Could not persist URI permission for $uri", e)
+            false
+        } catch (e: Exception) {
+            Log.e(TAG, "Unexpected error persisting URI permission for $uri", e)
+            false
         }
     }
 
