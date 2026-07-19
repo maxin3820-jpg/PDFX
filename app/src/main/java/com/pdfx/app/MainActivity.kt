@@ -38,11 +38,11 @@ class MainActivity : ComponentActivity() {
     private val homeViewModel: HomeViewModel by viewModels()
     
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Install splash screen - configured for instant launch (no animation)
+        // BUG #CRITICAL-03 FIX: installSplashScreen() MUST be called BEFORE
+        // super.onCreate(), otherwise it throws IllegalStateException on some devices.
         installSplashScreen().apply {
             setKeepOnScreenCondition { false } // Dismiss immediately
         }
-        
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 

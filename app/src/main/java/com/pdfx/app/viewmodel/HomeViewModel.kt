@@ -148,6 +148,13 @@ class HomeViewModel @Inject constructor(
 
         val insertedId = pdfRepository.insertDocument(document)
 
+        // BUG #HIGH-11 FIX: insertDocument returns -1L on conflict/failure.
+        // Only generate thumbnail when insert actually succeeded.
+        if (insertedId <= 0L) {
+            Log.w(TAG, "Insert returned $insertedId for ${document.uri} — skipping thumbnail")
+            return
+        }
+
         // Generate thumbnail asynchronously — doesn't block the import confirmation
         viewModelScope.launch {
             thumbnailCache.getOrGenerate(context, insertedId, uri)

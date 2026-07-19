@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 
 private const val TAG = "ReaderViewModel"
@@ -75,6 +77,14 @@ class ReaderViewModel @Inject constructor(
 
     fun openTemporary(uri: Uri) {
         viewModelScope.launch {
+            // BUG #HIGH-07 FIX: External PDFs from intents also need URI permission persisted
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (e: SecurityException) {
+                Log.d(TAG, "Could not persist temp URI permission (expected for some providers): ${e.message}")
+            }
             openUri(
                 uri = uri,
                 title = uri.lastPathSegment
@@ -224,7 +234,10 @@ class ReaderViewModel @Inject constructor(
 
     // ── Page rendering ────────────────────────────────────────────────────────
 
+    // BUG #CRITICAL-01 FIX: PdfRenderer is NOT thread-safe.
+    // Use a dedicated Mutex to prevent concurrent page renders crashing the app.
     // BUG #11 FIX: LRU-style bounded cache to prevent memory leaks
+    private val rendererMutex = kotlinx.coroutines.sync.Mutex()
     private val pageCacheKeys = ArrayDeque<Int>()
     private val pageCache = mutableMapOf<Int, Bitmap>()
     private var cachedTargetWidth: Int = 0
@@ -239,37 +252,49 @@ class ReaderViewModel @Inject constructor(
             }
             cachedTargetWidth = targetWidth
 
-            pageCache[pageIndex]?.let { return@withContext it }
+            // Check cache before acquiring lock
+            pageCache[pageIndex]?.let { cached ->
+                if (!cached.isRecycled) return@withContext cached
+            }
 
-            // BUG #14 FIX: Timeout to prevent infinite hang on bad PDFs
-            withTimeoutOrNull(PAGE_RENDER_TIMEOUT_MS) {
-                try {
-                    renderer.openPage(pageIndex).use { page ->
-                        val aspectRatio = page.height.toFloat() / page.width.toFloat()
-                        val bitmapHeight = (targetWidth * aspectRatio).toInt().coerceAtLeast(1)
+            // BUG #CRITICAL-01: All PdfRenderer operations under mutex
+            rendererMutex.withLock {
+                // Re-check cache inside lock
+                pageCache[pageIndex]?.let { cached ->
+                    if (!cached.isRecycled) return@withLock cached
+                }
 
-                        val bitmap = Bitmap.createBitmap(
-                            targetWidth, bitmapHeight, Bitmap.Config.RGB_565
-                        )
-                        bitmap.eraseColor(android.graphics.Color.WHITE)
-                        page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                // BUG #14 FIX: Timeout to prevent infinite hang on bad PDFs
+                withTimeoutOrNull(PAGE_RENDER_TIMEOUT_MS) {
+                    try {
+                        renderer.openPage(pageIndex).use { page ->
+                            val aspectRatio = page.height.toFloat() / page.width.toFloat()
+                            val bitmapHeight = (targetWidth * aspectRatio).toInt().coerceAtLeast(1)
 
-                        // BUG #11 FIX: Evict oldest entry when cache is full
-                        if (pageCache.size >= MAX_PAGE_CACHE_SIZE) {
-                            val oldest = pageCacheKeys.removeFirstOrNull()
-                            if (oldest != null) {
-                                pageCache.remove(oldest)?.recycle()
+                            val bitmap = Bitmap.createBitmap(
+                                targetWidth, bitmapHeight, Bitmap.Config.RGB_565
+                            )
+                            bitmap.eraseColor(android.graphics.Color.WHITE)
+                            page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+
+                            // BUG #11 FIX: Evict oldest entry when cache is full
+                            if (pageCache.size >= MAX_PAGE_CACHE_SIZE) {
+                                val oldest = pageCacheKeys.removeFirstOrNull()
+                                if (oldest != null) {
+                                    pageCache.remove(oldest)?.let {
+                                        if (!it.isRecycled) it.recycle()
+                                    }
+                                }
                             }
+                            pageCache[pageIndex] = bitmap
+                            pageCacheKeys.remove(pageIndex)
+                            pageCacheKeys.addLast(pageIndex)
+                            bitmap
                         }
-                        pageCache[pageIndex] = bitmap
-                        pageCacheKeys.remove(pageIndex)
-                        pageCacheKeys.addLast(pageIndex)
-
-                        bitmap
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to render page $pageIndex", e)
+                        null
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to render page $pageIndex", e)
-                    null
                 }
             }
         }

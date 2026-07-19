@@ -54,10 +54,9 @@ class PdfRepositoryImpl @Inject constructor(
     ) = dao.updateReadingPosition(id, pageIndex, zoom, scrollOffset)
 
     override suspend fun pruneStaleDocuments(validUris: Set<String>) {
-        if (validUris.isEmpty()) {
-            // If the set is somehow empty, do nothing to avoid accidental data wipe
-            return
-        }
+        // BUG #CRITICAL-04 FIX: Empty set passed to NOT IN() deletes ALL rows in SQLite.
+        // Always guard against empty set - if no valid URIs exist don't wipe everything.
+        if (validUris.isEmpty()) return
         dao.deleteWhereUriNotIn(validUris.toList())
     }
 }
